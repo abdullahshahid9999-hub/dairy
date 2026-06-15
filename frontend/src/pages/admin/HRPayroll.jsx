@@ -55,7 +55,6 @@ export default function HRPayroll() {
     } catch (err) { toast.error('Migration failed: ' + (err.response?.data?.message || err.message)); }
   };
 
-  // یہاں فنکشن کی باڈی کو فکس کیا گیا ہے
   const loadEmps = () => {
     setLoading(true);
     const endpoint = showFired ? '/hr/employees/all' : '/hr/employees';
@@ -303,7 +302,7 @@ export default function HRPayroll() {
                     {info.access.map(a => (
                       <li key={a} className="text-[11px] text-slate-500 flex items-center gap-1">
                         <span className="text-emerald-500">✓</span> {a}
-                      </td>
+                      </li>
                     ))}
                   </ul>
                 </button>
