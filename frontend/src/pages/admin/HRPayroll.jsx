@@ -421,4 +421,4 @@ export default function HRPayroll() {
         title="Fire Employee" message={`Deactivate ${fireTarget?.name}? Their login will be disabled.`} danger/>
     </div>
   );
-}
+
