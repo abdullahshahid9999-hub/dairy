@@ -60,9 +60,9 @@ router.post('/', adminOnly,
       for(const item of items){
         const amt=parseFloat(item.qty)*parseFloat(item.rate);
         await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-          [r.insertId,item.description,item.qty,item.unit||'L',item.rate,amt.toFixed(2)]);
+          [r?.id,item.description,item.qty,item.unit||'L',item.rate,amt.toFixed(2)]);
       }
-      res.status(201).json({success:true,data:{id:r.insertId,invoice_no:no,total}});
+      res.status(201).json({success:true,data:{id:r?.id,invoice_no:no,total}});
     } catch(err){next(err);}
   }
 );
@@ -106,7 +106,7 @@ router.post('/:id/payment', adminOnly,
       if(inv.customer_id) {
         await db.query('UPDATE customers SET outstanding=GREATEST(0,outstanding-$1) WHERE id=$2',[amount,inv.customer_id]);
       }
-      res.status(201).json({success:true,data:{id:r.insertId,new_status:newStatus,paid_amount:newPaid}});
+      res.status(201).json({success:true,data:{id:r?.id,new_status:newStatus,paid_amount:newPaid}});
     } catch(err){next(err);}
   }
 );

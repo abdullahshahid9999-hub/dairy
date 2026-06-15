@@ -38,7 +38,7 @@ router.post('/', adminOnly, async (req, res, next) => {
        installment_months||null, installment_paid,
        notes||null, req.user.id]
     );
-    res.status(201).json({success:true,data:{id:r.insertId}});
+    res.status(201).json({success:true,data:{id:r?.id}});
   } catch(err){next(err);}
 });
 
@@ -88,9 +88,9 @@ router.post('/:id/expenses', async (req,res,next) => {
     if(cat){
       await db.query('INSERT INTO expenses (category_id,expense_date,amount,description,reference_type,reference_id,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7)',
         [cat.id,expense_date,amount,`${expense_type}: Vehicle ${req.params.id}`,
-         'vehicle',r.insertId,req.user.id]);
+         'vehicle',r?.id,req.user.id]);
     }
-    res.status(201).json({success:true,data:{id:r.insertId}});
+    res.status(201).json({success:true,data:{id:r?.id}});
   }catch(err){next(err);}
 });
 

@@ -92,20 +92,41 @@ router.post('/employees',
         const ex = await db.queryOne('SELECT id FROM users WHERE email=$1', [email]);
         if (ex) return res.status(409).json({ success:false, message:'Email already in use' });
         const hash = await bcrypt.hash(password, 12);
-        const [ur] = await db.query(
-          `INSERT INTO users (name,email,password_hash,role,is_active,email_verified,department,permissions,shop_id)
-           VALUES ($1,$2,$3,'staff',true,true,$4,$5,$6) RETURNING id`,
-          [name, email, hash, department, JSON.stringify(autoPerms), shop_id]
-        );
-        user_id = ur.insertId;
+        // Try with shop_id column, fallback without if column doesn't exist yet
+        let newUser;
+        try {
+          newUser = await db.queryOne(
+            `INSERT INTO users (name,email,password_hash,role,is_active,email_verified,department,permissions,shop_id)
+             VALUES ($1,$2,$3,'staff',true,true,$4,$5,$6) RETURNING id`,
+            [name, email, hash, department, JSON.stringify(autoPerms), shop_id || null]
+          );
+        } catch(colErr) {
+          // shop_id column might not exist — insert without it
+          newUser = await db.queryOne(
+            `INSERT INTO users (name,email,password_hash,role,is_active,email_verified,department,permissions)
+             VALUES ($1,$2,$3,'staff',true,true,$4,$5) RETURNING id`,
+            [name, email, hash, department, JSON.stringify(autoPerms)]
+          );
+        }
+        user_id = newUser?.id || null;
       }
 
-      const [r] = await db.query(
-        `INSERT INTO employees (emp_code,name,phone,address,designation,department,base_salary,join_date,shop_id,user_id,created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
-        [emp_code, name, phone||null, address||null, designation||null, department, base_salary, join_date||null, shop_id, user_id, req.user.id]
-      );
-      res.status(201).json({ success:true, data:{ id:r.insertId, emp_code, user_id } });
+      let newEmp;
+      try {
+        newEmp = await db.queryOne(
+          `INSERT INTO employees (emp_code,name,phone,address,designation,department,base_salary,join_date,shop_id,user_id,created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+          [emp_code, name, phone||null, address||null, designation||null, department, base_salary, join_date||null, shop_id||null, user_id, req.user.id]
+        );
+      } catch(colErr) {
+        // shop_id column might not exist yet
+        newEmp = await db.queryOne(
+          `INSERT INTO employees (emp_code,name,phone,address,designation,department,base_salary,join_date,user_id,created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+          [emp_code, name, phone||null, address||null, designation||null, department, base_salary, join_date||null, user_id, req.user.id]
+        );
+      }
+      res.status(201).json({ success:true, data:{ id:newEmp?.id, emp_code, user_id } });
     } catch(err){next(err);}
   }
 );
@@ -159,11 +180,11 @@ router.post('/employees/:id/advances',
   async (req,res,next) => {
     try {
       const {amount,advance_date,notes} = req.body;
-      const [r] = await db.query(
+      const advRow = await db.queryOne(
         'INSERT INTO advance_salary (employee_id,amount,advance_date,notes,created_by) VALUES ($1,$2,$3,$4,$5) RETURNING id',
         [req.params.id,amount,advance_date,notes||null,req.user.id]
       );
-      res.status(201).json({success:true,data:{id:r.insertId}});
+      res.status(201).json({success:true,data:{id:advRow?.id}});
     } catch(err){next(err);}
   }
 );
@@ -250,7 +271,7 @@ router.post('/payroll/process',
           const dedTotal   = adjs.filter(a=>a.type==='deduction').reduce((s,a)=>s+parseFloat(a.amount),0);
           const advDed=Math.min(pending,parseFloat(emp.base_salary));
           const net=parseFloat(emp.base_salary)+allowances+bonusTotal-dedTotal-advDed;
-          const [pr] = await conn.query(
+          const pr = await conn.queryOne(
             `INSERT INTO payroll (employee_id,payroll_month,base_salary,allowances,advance_deduction,net_salary,processed_by)
              VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
             [emp.id,payroll_month,emp.base_salary,allowances+bonusTotal-dedTotal,advDed.toFixed(2),Math.max(0,net).toFixed(2),req.user.id]
@@ -277,9 +298,9 @@ router.post('/payroll/process',
           if(salCat){
             const [yr,mn]=payroll_month.split('-');
             await conn.query('INSERT INTO expenses (category_id,expense_date,amount,description,reference_type,reference_id,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-              [salCat.id,`${yr}-${mn}-01`,Math.max(0,net).toFixed(2),`Salary: ${emp.name} (${payroll_month})`,'payroll',pr.insertId,req.user.id]);
+              [salCat.id,`${yr}-${mn}-01`,Math.max(0,net).toFixed(2),`Salary: ${emp.name} (${payroll_month})`,'payroll',pr?.id,req.user.id]);
           }
-          processed.push({id:pr.insertId,employee:emp.name,net_salary:Math.max(0,net).toFixed(2),bonus:bonusTotal,deduction:dedTotal});
+          processed.push({id:pr?.id,employee:emp.name,net_salary:Math.max(0,net).toFixed(2),bonus:bonusTotal,deduction:dedTotal});
         }
         return processed;
       });

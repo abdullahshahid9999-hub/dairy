@@ -44,7 +44,7 @@ router.post('/', adminOnly,
         [code,name,phone||null,address||null,customer_type,company_name||null,cnic||null,
          daily_qty||0,rate_per_liter||0,credit_limit||0,payment_terms||'monthly',req.user.id]
       );
-      res.status(201).json({ success:true, data:{ id:r.insertId, code } });
+      res.status(201).json({ success:true, data:{ id:r?.id, code } });
     } catch (err) { next(err); }
   }
 );
@@ -100,7 +100,7 @@ router.post('/:id/bulk-bill', adminOnly, async (req, res, next) => {
        entries.reduce((s,e)=>s+parseFloat(e.qty_liters),0).toFixed(2),
        total.toFixed(2),total.toFixed(2),notes||null,req.user.id]
     );
-    res.status(201).json({ success:true, data:{ receipt_id:r.insertId, receipt_no:no, total } });
+    res.status(201).json({ success:true, data:{ receipt_id:r?.id, receipt_no:no, total } });
   } catch (err) { next(err); }
 });
 
@@ -150,7 +150,7 @@ router.post('/:id/monthly-bill', adminOnly, async (req, res, next) => {
     );
     // Update outstanding
     await db.query('UPDATE customers SET outstanding=outstanding+$1 WHERE id=$2', [totalAmount, req.params.id]);
-    res.status(201).json({ success:true, data:{ receipt_id:r.insertId, receipt_no:no, total:totalAmount, qty:totalQty } });
+    res.status(201).json({ success:true, data:{ receipt_id:r?.id, receipt_no:no, total:totalAmount, qty:totalQty } });
   } catch (err) { next(err); }
 });
 
@@ -225,7 +225,7 @@ router.post('/sale',
       for (const item of items) {
         await db.query(
           'INSERT INTO receipt_items (receipt_id,product_id,product_name,qty,price,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-          [r.insertId,item.product_id,item.product_name,item.qty,item.price,(item.qty*item.price).toFixed(2)]
+          [r?.id,item.product_id,item.product_name,item.qty,item.price,(item.qty*item.price).toFixed(2)]
         );
         await db.query('UPDATE products SET stock_qty=GREATEST(0,stock_qty-$1) WHERE id=$2', [item.qty,item.product_id]);
       }
@@ -245,14 +245,14 @@ router.post('/sale',
       // Insert invoice items
       if (parseFloat(milk_qty)>0) {
         await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-          [invR.insertId, 'Milk', milk_qty, 'L', milk_rate, milkAmount.toFixed(2)]);
+          [invR?.id, 'Milk', milk_qty, 'L', milk_rate, milkAmount.toFixed(2)]);
       }
       for (const item of items) {
         await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-          [invR.insertId, item.product_name, item.qty, item.unit||'pcs', item.price, (item.qty*item.price).toFixed(2)]);
+          [invR?.id, item.product_name, item.qty, item.unit||'pcs', item.price, (item.qty*item.price).toFixed(2)]);
       }
 
-      res.status(201).json({ success:true, data:{ receipt_id:r.insertId, receipt_no:no, invoice_no:invNo, invoice_id:invR.insertId, total } });
+      res.status(201).json({ success:true, data:{ receipt_id:r?.id, receipt_no:no, invoice_no:invNo, invoice_id:invR?.id, total } });
     } catch (err) { next(err); }
   }
 );

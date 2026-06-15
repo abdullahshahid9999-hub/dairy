@@ -63,7 +63,7 @@ expRouter.post('/',
         'INSERT INTO expenses (category_id,expense_date,amount,description,reference_type,reference_id,created_by) VALUES (?,?,?,?,?,?,?)',
         [category_id, expense_date, amount, description||null, reference_type||null, reference_id||null, req.user.id]
       );
-      res.status(201).json({ success: true, message: 'Expense recorded.', data: { id: result.insertId } });
+      res.status(201).json({ success: true, message: 'Expense recorded.', data: { id: result?.id } });
     } catch (err) { next(err); }
   }
 );

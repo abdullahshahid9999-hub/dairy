@@ -30,7 +30,7 @@ router.post('/periods', adminOnly,
         'INSERT INTO billing_periods (period_month, period_year, created_by) VALUES (?,?,?)',
         [period_month, period_year, req.user.id]
       );
-      res.status(201).json({ success: true, message: 'Billing period created.', data: { id: result.insertId } });
+      res.status(201).json({ success: true, message: 'Billing period created.', data: { id: result?.id } });
     } catch (err) { next(err); }
   }
 );
@@ -130,12 +130,12 @@ router.post('/generate', adminOnly,
                  (bill_id, milk_record_id, collection_date, shift, quantity_liters,
                   fat_percentage, snf_percentage, computed_rate, line_amount)
                VALUES (?,?,?,?,?,?,?,?,?)`,
-              [billResult.insertId, r.id, r.collection_date, r.shift,
+              [billResult?.id, r.id, r.collection_date, r.shift,
                r.quantity_liters, r.fat_percentage, r.snf_percentage, r.computed_rate, r.total_amount]
             );
           }
 
-          created.push({ id: billResult.insertId, bill_number: billNumber, farmer: farmer.name, net_payable: netPayable });
+          created.push({ id: billResult?.id, bill_number: billNumber, farmer: farmer.name, net_payable: netPayable });
         }
 
         return created;

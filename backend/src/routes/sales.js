@@ -33,7 +33,7 @@ router.post('/companies', adminOnly,
         'INSERT INTO companies (name, contact_name, phone, address, gstin, created_by) VALUES (?,?,?,?,?,?)',
         [name, contact_name || null, phone || null, address || null, gstin || null, req.user.id]
       );
-      res.status(201).json({ success: true, message: 'Company added.', data: { id: result.insertId } });
+      res.status(201).json({ success: true, message: 'Company added.', data: { id: result?.id } });
     } catch (err) { next(err); }
   }
 );
@@ -84,7 +84,7 @@ router.post('/contracts', adminOnly,
         [company_id, contract_ref || null, rate_per_liter, min_quantity || null,
          start_date, end_date || null, notes || null, req.user.id]
       );
-      res.status(201).json({ success: true, message: 'Contract created.', data: { id: result.insertId } });
+      res.status(201).json({ success: true, message: 'Contract created.', data: { id: result?.id } });
     } catch (err) { next(err); }
   }
 );
@@ -158,7 +158,7 @@ router.post('/sales',
          payment_status || 'pending', received_amount || 0, notes || null, req.user.id]
       );
 
-      res.status(201).json({ success: true, message: 'Sale recorded.', data: { id: result.insertId, total_amount } });
+      res.status(201).json({ success: true, message: 'Sale recorded.', data: { id: result?.id, total_amount } });
     } catch (err) { next(err); }
   }
 );

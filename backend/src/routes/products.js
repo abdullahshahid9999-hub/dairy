@@ -23,7 +23,7 @@ router.post('/', adminOnly,
         'INSERT INTO products (name,price,unit_type,stock_qty,created_by) VALUES ($1,$2,$3,$4,$5) RETURNING id',
         [name, price, unit_type, stock_qty, req.user.id]
       );
-      res.status(201).json({ success: true, data: { id: r.insertId } });
+      res.status(201).json({ success: true, data: { id: r?.id } });
     } catch (err) { next(err); }
   }
 );

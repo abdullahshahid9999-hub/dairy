@@ -31,7 +31,7 @@ router.post('/', adminOnly, async (req, res, next) => {
        ownership_type==='rented'?rent_due_day||null:null,
        req.user.id]
     );
-    res.status(201).json({success:true,data:{id:r.insertId}});
+    res.status(201).json({success:true,data:{id:r?.id}});
   } catch(err){next(err);}
 });
 
@@ -83,7 +83,7 @@ router.patch('/:id/rent', adminOnly, async (req, res, next) => {
          `Shop rent: ${paid_for}`, 'shop', req.params.id, req.user.id]
       );
     }
-    res.status(201).json({success:true,data:{id:r.insertId}});
+    res.status(201).json({success:true,data:{id:r?.id}});
   } catch(err){next(err);}
 });
 
