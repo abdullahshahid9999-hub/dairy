@@ -26,6 +26,9 @@ router.post('/migrate', authenticate, adminOnly, async (req, res) => {
   res.json({ success: true, results });
 });
 
+// All routes below require admin auth
+router.use(authenticate, adminOnly);
+
 const DEPTS = ['sales','purchase'];
 const DEPT_PERMS = {
   sales:    ['sales','customers','products','dashboard'],
