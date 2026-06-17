@@ -38,11 +38,16 @@ import SalesDashboard from './pages/staff/SalesDashboard';
 import SalesEntry     from './pages/staff/SalesEntry';
 import SalesHistory   from './pages/staff/SalesHistory';
 
-function RequireAuth({ children, adminOnly = false }) {
+function RequireAuth({ children, adminOnly = false, dept = null }) {
   const { isLoggedIn, isLoading, user } = useAuthStore();
   if (isLoading) return <PageSpinner />;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
+  // Admin-only routes
   if (adminOnly && user?.role !== 'admin') {
+    return <Navigate to={user?.department === 'sales' ? '/sales' : '/staff'} replace />;
+  }
+  // Department-specific routes — block wrong-dept staff
+  if (dept && user?.role !== 'admin' && user?.department !== dept) {
     return <Navigate to={user?.department === 'sales' ? '/sales' : '/staff'} replace />;
   }
   return children;
@@ -100,14 +105,14 @@ export default function App() {
         </Route>
 
         {/* Purchase staff — milk collection */}
-        <Route path="/staff" element={<RequireAuth><StaffLayout /></RequireAuth>}>
+        <Route path="/staff" element={<RequireAuth dept="purchase"><StaffLayout /></RequireAuth>}>
           <Route index         element={<StaffDashboard />} />
           <Route path="milk"   element={<MilkEntry />} />
           <Route path="history" element={<MilkHistory />} />
         </Route>
 
         {/* Sales staff — walk-in sales */}
-        <Route path="/sales" element={<RequireAuth><SalesLayout /></RequireAuth>}>
+        <Route path="/sales" element={<RequireAuth dept="sales"><SalesLayout /></RequireAuth>}>
           <Route index          element={<SalesDashboard />} />
           <Route path="entry"   element={<SalesEntry />} />
           <Route path="history" element={<SalesHistory />} />
