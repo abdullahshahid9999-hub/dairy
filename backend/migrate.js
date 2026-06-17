@@ -23,6 +23,44 @@ const steps = [
   `CREATE INDEX IF NOT EXISTS idx_receipts_shop  ON receipts(shop_id)`,
   // Sync department from employees to users for existing staff
   `UPDATE users u SET department = e.department FROM employees e WHERE e.user_id = u.id AND u.role = 'staff' AND (u.department IS NULL OR u.department = '')`,
+  // Ensure advance_salary table exists (PostgreSQL)
+  `CREATE TABLE IF NOT EXISTS advance_salary (
+    id           BIGSERIAL PRIMARY KEY,
+    employee_id  BIGINT NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    amount       NUMERIC(10,2) NOT NULL,
+    advance_date DATE NOT NULL,
+    recovered    NUMERIC(10,2) NOT NULL DEFAULT 0,
+    status       VARCHAR(20) NOT NULL DEFAULT 'pending',
+    notes        TEXT,
+    created_by   BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  // Ensure salary_adjustments table exists
+  `CREATE TABLE IF NOT EXISTS salary_adjustments (
+    id           BIGSERIAL PRIMARY KEY,
+    employee_id  BIGINT NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    type         VARCHAR(20) NOT NULL DEFAULT 'bonus',
+    amount       NUMERIC(10,2) NOT NULL,
+    reason       TEXT,
+    apply_month  VARCHAR(7) NOT NULL,
+    created_by   BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  // Ensure payroll table exists
+  `CREATE TABLE IF NOT EXISTS payroll (
+    id               BIGSERIAL PRIMARY KEY,
+    employee_id      BIGINT NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    payroll_month    VARCHAR(7) NOT NULL,
+    base_salary      NUMERIC(10,2) NOT NULL,
+    adjustments      NUMERIC(10,2) NOT NULL DEFAULT 0,
+    advance_deducted NUMERIC(10,2) NOT NULL DEFAULT 0,
+    net_salary       NUMERIC(10,2) NOT NULL,
+    status           VARCHAR(20) NOT NULL DEFAULT 'pending',
+    paid_date        DATE,
+    created_by       BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(employee_id, payroll_month)
+  )`,
 ];
 
 (async () => {
