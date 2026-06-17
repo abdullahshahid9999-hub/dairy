@@ -86,6 +86,9 @@ export default function HRPayroll() {
         ...form,
         shop_id: form.shop_id ? parseInt(form.shop_id, 10) : null,
         base_salary: parseFloat(form.base_salary),
+        // Only send email/password if portal access is enabled
+        email: portalAccess ? form.email : '',
+        password: portalAccess ? form.password : '',
       };
       if (modal==='edit') {
         await api.put(`/hr/employees/${selEmp.id}`, payload);
@@ -322,7 +325,7 @@ export default function HRPayroll() {
                   type="button"
                   onClick={() => {
                     setPortalAccess(p => !p);
-                    if (portalAccess) setForm(p => ({ ...p, email:'', password:'' }));
+                    if (!portalAccess) setForm(p => ({ ...p, email:'', password:'' }));
                   }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${portalAccess ? 'bg-[#1d6faa]' : 'bg-slate-300'}`}
                 >
