@@ -41,7 +41,13 @@ import SalesHistory   from './pages/staff/SalesHistory';
 function RequireAuth({ children, adminOnly = false, dept = null }) {
   const { isLoggedIn, isLoading, user } = useAuthStore();
   if (isLoading) return <PageSpinner />;
-  if (!isLoggedIn) return <Navigate to="/login" replace />;
+  // Redirect to portal-specific login if not logged in
+  if (!isLoggedIn) {
+    const path = window.location.pathname;
+    if (path.startsWith('/sales'))    return <Navigate to="/sales/login" replace />;
+    if (path.startsWith('/staff') || path.startsWith('/purchase')) return <Navigate to="/purchase/login" replace />;
+    return <Navigate to="/admin/login" replace />;
+  }
   // Admin-only routes
   if (adminOnly && user?.role !== 'admin') {
     return <Navigate to={user?.department === 'sales' ? '/sales' : '/staff'} replace />;
@@ -77,7 +83,10 @@ export default function App() {
       />
       <Routes>
         {/* Public */}
-        <Route path="/login"           element={<LoginPage />} />
+        <Route path="/login"           element={<LoginPage portal="admin" />} />
+        <Route path="/admin/login"      element={<LoginPage portal="admin" />} />
+        <Route path="/sales/login"      element={<LoginPage portal="sales" />} />
+        <Route path="/purchase/login"   element={<LoginPage portal="purchase" />} />
         <Route path="/verify-email"    element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password"  element={<ResetPasswordPage />} />
