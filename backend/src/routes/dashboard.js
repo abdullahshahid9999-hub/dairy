@@ -131,6 +131,23 @@ dashRouter.get('/', async (req, res, next) => {
       return rows;
     }, []);
 
+    // Per-shop stock breakdown
+    const shopStocks = await safeQuery(async () => {
+      const [rows] = await db.query(
+        `SELECT s.id, s.shop_name, s.location,
+                GREATEST(0,
+                  COALESCE((SELECT SUM(mr.quantity_liters) FROM milk_records mr WHERE mr.shop_id=s.id),0)
+                - COALESCE((SELECT SUM(r.milk_qty) FROM receipts r WHERE r.shop_id=s.id AND r.milk_qty>0),0)
+                ) AS stock_liters,
+                COALESCE((SELECT SUM(mr.quantity_liters) FROM milk_records mr WHERE mr.shop_id=s.id AND mr.collection_date BETWEEN $1 AND $2),0) AS purchased_period,
+                COALESCE((SELECT SUM(r.total_amount) FROM receipts r WHERE r.shop_id=s.id AND r.receipt_date BETWEEN $1 AND $2),0) AS sales_period,
+                COALESCE((SELECT SUM(r.milk_qty) FROM receipts r WHERE r.shop_id=s.id AND r.receipt_date BETWEEN $1 AND $2 AND r.milk_qty>0),0) AS sold_liters_period
+         FROM shops s WHERE s.is_active=true ORDER BY s.shop_name`,
+        [start, end]
+      );
+      return rows;
+    }, []);
+
     const profit = parseFloat(salesStats?.total_revenue || 0)
                  - parseFloat(milkStats?.purchase_cost  || 0)
                  - parseFloat(expStats?.total_expenses  || 0);
@@ -157,6 +174,7 @@ dashRouter.get('/', async (req, res, next) => {
         purchase_breakdown: purchaseBreakdown || [],
         top_farmers:        topFarmers        || [],
         milk_trend:         milkTrend         || [],
+        shop_stocks:        shopStocks        || [],
       },
     });
   } catch (err) {

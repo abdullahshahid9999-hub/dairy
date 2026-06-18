@@ -364,6 +364,27 @@ export default function HRPayroll() {
                       </button>
                     </div>
                   </div>
+                  {/* Bulk deal access — only for sales staff */}
+                  {form.department === 'sales' && (
+                    <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">Bulk Deal Access</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Allow this employee to create bulk customer entries</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setForm(p => ({
+                          ...p,
+                          extra_permissions: p.extra_permissions?.includes('bulk_access')
+                            ? p.extra_permissions.filter(x => x !== 'bulk_access')
+                            : [...(p.extra_permissions||[]), 'bulk_access']
+                        }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${form.extra_permissions?.includes('bulk_access') ? 'bg-green-500' : 'bg-slate-300'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.extra_permissions?.includes('bulk_access') ? 'translate-x-6' : 'translate-x-1'}`}/>
+                      </button>
+                    </div>
+                  )}
                   <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
                     ⚠️ Employee will only see pages allowed for their portal type ({PORTAL_DESC[form.department]?.label}).
                   </p>

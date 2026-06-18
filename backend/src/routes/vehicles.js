@@ -38,7 +38,7 @@ router.post('/', adminOnly, async (req, res, next) => {
        installment_months||null, installment_paid,
        notes||null, req.user.id]
     );
-    res.status(201).json({success:true,data:{id:r?.id}});
+    res.status(201).json({success:true,data:{id:r?.insertId}});
   } catch(err){next(err);}
 });
 

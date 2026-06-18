@@ -118,7 +118,7 @@ export default function Dashboard() {
   };
 
   const kpi       = data?.kpi || {};
-  const shopStock = data?.shop_stock || [];
+  const shopStock = data?.shop_stocks || data?.shop_stock || [];
   const purchases = data?.purchase_breakdown || [];
   const period    = data?.period || {};
 
@@ -268,14 +268,22 @@ export default function Dashboard() {
             {shopStock.length === 0
               ? <p className="text-slate-400 text-xs text-center py-2">No shop data available.</p>
               : shopStock.map((s, i) => (
-                <div key={i} className="flex justify-between items-center text-xs py-2 border-b border-slate-50 last:border-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
-                      <Store size={12} className="text-amber-600"/>
+                <div key={i} className="py-2 border-b border-slate-50 last:border-0">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                        <Store size={12} className="text-amber-600"/>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700 text-xs">{s.shop_name}</p>
+                        {s.location && <p className="text-[10px] text-slate-400">{s.location}</p>}
+                      </div>
                     </div>
-                    <p className="font-semibold text-slate-700">{s.shop_name}</p>
+                    <div className="text-right">
+                      <p className="font-mono font-bold text-xs ${parseFloat(s.stock_liters) < 20 ? 'text-red-600' : 'text-emerald-600'}">{fmtL(s.stock_liters)} in stock</p>
+                      <p className="text-[10px] text-slate-400">{fmtL(s.sold_liters_period||0)} sold · {fmtL(s.purchased_period||0)} in</p>
+                    </div>
                   </div>
-                  <p className="font-mono font-bold text-slate-600">{fmtL(s.sold_liters)} sold</p>
                 </div>
               ))
             }

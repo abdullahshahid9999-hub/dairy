@@ -30,7 +30,7 @@ router.post('/periods', adminOnly,
         'INSERT INTO billing_periods (period_month, period_year, created_by) VALUES (?,?,?)',
         [period_month, period_year, req.user.id]
       );
-      res.status(201).json({ success: true, message: 'Billing period created.', data: { id: result?.id } });
+      res.status(201).json({ success: true, message: 'Billing period created.', data: { id: result?.insertId } });
     } catch (err) { next(err); }
   }
 );

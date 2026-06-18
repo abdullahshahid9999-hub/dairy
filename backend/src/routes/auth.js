@@ -64,7 +64,7 @@ router.post('/register',
         `INSERT INTO users (name, email, password_hash, role, is_active, email_verified) VALUES ($1,$2,$3,'staff',true,true)`,
         [name, email, hash]
       );
-      const newUser = await db.queryOne('SELECT id, name, email, role FROM users WHERE id = $1', [result?.id]);
+      const newUser = await db.queryOne('SELECT id, name, email, role FROM users WHERE id = $1', [result?.insertId]);
 
       const accessToken  = makeAccessToken(newUser);
       const refreshToken = makeRefreshToken(newUser);

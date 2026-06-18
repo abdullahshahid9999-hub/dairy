@@ -166,7 +166,7 @@ router.post('/', async (req, res, next) => {
          lr, ts, standardised_ts, snf_computed,
          sp_gravity, rate_per_unit, total_payout, shop_id || null, notes || null, req.user.id]
       );
-      insertedId = result[0]?.id;
+      insertedId = result.insertId;
     } else {
       // Fallback: insert without new columns (pre-migration)
       const [result] = await db.query(
@@ -179,7 +179,7 @@ router.post('/', async (req, res, next) => {
          fat, snf_percentage ? parseFloat(snf_percentage) : null,
          rate_per_unit, total_payout, notes || null, req.user.id]
       );
-      insertedId = result[0]?.id;
+      insertedId = result.insertId;
     }
 
     if (isPurchase(req.user)) {

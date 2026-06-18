@@ -60,7 +60,7 @@ router.post('/', adminOnly,
       for(const item of items){
         const amt=parseFloat(item.qty)*parseFloat(item.rate);
         await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-          [r?.id,item.description,item.qty,item.unit||'L',item.rate,amt.toFixed(2)]);
+          [r?.insertId,item.description,item.qty,item.unit||'L',item.rate,amt.toFixed(2)]);
       }
       res.status(201).json({success:true,data:{id:r?.id,invoice_no:no,total}});
     } catch(err){next(err);}
