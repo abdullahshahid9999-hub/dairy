@@ -33,7 +33,7 @@ router.post('/companies', adminOnly,
         'INSERT INTO companies (name, contact_name, phone, address, gstin, created_by) VALUES (?,?,?,?,?,?)',
         [name, contact_name || null, phone || null, address || null, gstin || null, req.user.id]
       );
-      res.status(201).json({ success: true, message: 'Company added.', data: { id: result?.insertId } });
+      res.status(201).json({ success: true, message: 'Company added.', data: { id: result?.id } });
     } catch (err) { next(err); }
   }
 );
@@ -78,13 +78,13 @@ router.post('/contracts', adminOnly,
   async (req, res, next) => {
     try {
       const { company_id, contract_ref, rate_per_liter, min_quantity, start_date, end_date, notes } = req.body;
-      const [result] = await db.query(`INSERT INTO sales_contracts
+      const result = await db.queryOne(`INSERT INTO sales_contracts
            (company_id, contract_ref, rate_per_liter, min_quantity, start_date, end_date, notes, created_by)
          VALUES (?,?,?,?,?,?,?,?)`,
         [company_id, contract_ref || null, rate_per_liter, min_quantity || null,
          start_date, end_date || null, notes || null, req.user.id]
       );
-      res.status(201).json({ success: true, message: 'Contract created.', data: { id: result?.insertId } });
+      res.status(201).json({ success: true, message: 'Contract created.', data: { id: result?.id } });
     } catch (err) { next(err); }
   }
 );
@@ -149,7 +149,7 @@ router.post('/sales',
       if (!contract) return res.status(404).json({ success: false, message: 'Active contract not found.' });
 
       const total_amount = parseFloat((quantity_liters * rate_per_liter).toFixed(2));
-      const [result] = await db.query(`INSERT INTO milk_sales
+      const result = await db.queryOne(`INSERT INTO milk_sales
            (contract_id, company_id, sale_date, quantity_liters, fat_percentage, snf_percentage,
             rate_per_liter, total_amount, payment_status, received_amount, notes, recorded_by)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -158,7 +158,7 @@ router.post('/sales',
          payment_status || 'pending', received_amount || 0, notes || null, req.user.id]
       );
 
-      res.status(201).json({ success: true, message: 'Sale recorded.', data: { id: result?.insertId, total_amount } });
+      res.status(201).json({ success: true, message: 'Sale recorded.', data: { id: result?.id, total_amount } });
     } catch (err) { next(err); }
   }
 );

@@ -60,11 +60,11 @@ router.post('/register',
       if (existing) return res.status(409).json({ success: false, message: 'Email already registered.' });
 
       const hash = await bcrypt.hash(password, 12);
-      const [result] = await db.query(
+      const result = await db.queryOne(
         `INSERT INTO users (name, email, password_hash, role, is_active, email_verified) VALUES ($1,$2,$3,'staff',true,true)`,
         [name, email, hash]
       );
-      const newUser = await db.queryOne('SELECT id, name, email, role FROM users WHERE id = $1', [result?.insertId]);
+      const newUser = await db.queryOne('SELECT id, name, email, role FROM users WHERE id = $1', [result?.id]);
 
       const accessToken  = makeAccessToken(newUser);
       const refreshToken = makeRefreshToken(newUser);

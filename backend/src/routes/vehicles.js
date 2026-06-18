@@ -26,7 +26,7 @@ router.post('/', adminOnly, async (req, res, next) => {
     // capacity only for commercial
     const cap = use_type === 'commercial' ? capacity_liters||null : null;
 
-    const [r] = await db.query(
+    const r = await db.queryOne(
       `INSERT INTO vehicles (reg_number,make_model,use_type,ownership_type,owner_name,owner_phone,
          monthly_rent,capacity_liters,purchase_price,payment_type,installment_months,installment_paid,
          notes,is_active,created_by)
@@ -38,7 +38,7 @@ router.post('/', adminOnly, async (req, res, next) => {
        installment_months||null, installment_paid,
        notes||null, req.user.id]
     );
-    res.status(201).json({success:true,data:{id:r?.insertId}});
+    res.status(201).json({success:true,data:{id:r?.id}});
   } catch(err){next(err);}
 });
 

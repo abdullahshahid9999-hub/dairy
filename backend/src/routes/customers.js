@@ -37,14 +37,14 @@ router.post('/', adminOnly,
       }
       const maxRow = await db.queryOne('SELECT COALESCE(MAX(id),0) AS m FROM customers');
       const code = `CUS-${String(Number(maxRow.m)+1).padStart(4,'0')}`;
-      const [r] = await db.query(
+      const r = await db.queryOne(
         `INSERT INTO customers (customer_code,name,phone,address,customer_type,company_name,cnic,
           daily_qty,rate_per_liter,credit_limit,payment_terms,created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
         [code,name,phone||null,address||null,customer_type,company_name||null,cnic||null,
          daily_qty||0,rate_per_liter||0,credit_limit||0,payment_terms||'monthly',req.user.id]
       );
-      res.status(201).json({ success:true, data:{ id:r?.insertId, code } });
+      res.status(201).json({ success:true, data:{ id:r?.id, code } });
     } catch (err) { next(err); }
   }
 );
@@ -105,7 +105,7 @@ router.post('/:id/bulk-bill', adminOnly, async (req, res, next) => {
        entries.reduce((s,e)=>s+parseFloat(e.qty_liters),0).toFixed(2),
        total.toFixed(2),total.toFixed(2),notes||null,req.user.id]
     );
-    res.status(201).json({ success:true, data:{ receipt_id:r?.insertId, receipt_no:no, total } });
+    res.status(201).json({ success:true, data:{ receipt_id:r?.id, receipt_no:no, total } });
   } catch (err) { next(err); }
 });
 
@@ -146,7 +146,7 @@ router.post('/:id/monthly-bill', adminOnly, async (req, res, next) => {
     const totalAmount = baseAmount + parseFloat(extras[0]?.ea||0);
     const seq = await db.queryOne('SELECT COALESCE(MAX(id),0) AS m FROM receipts');
     const no  = `REC-${String(Number(seq.m)+1).padStart(6,'0')}`;
-    const [r] = await db.query(
+    const r = await db.queryOne(
       `INSERT INTO receipts (receipt_no,customer_id,customer_type,receipt_date,period_start,period_end,
         milk_qty,milk_amount,total_amount,status,notes,created_by)
        VALUES ($1,$2,'household',CURRENT_DATE,$3,$4,$5,$6,$7,'pending',$8,$9) RETURNING id`,
@@ -155,7 +155,7 @@ router.post('/:id/monthly-bill', adminOnly, async (req, res, next) => {
     );
     // Update outstanding
     await db.query('UPDATE customers SET outstanding=outstanding+$1 WHERE id=$2', [totalAmount, req.params.id]);
-    res.status(201).json({ success:true, data:{ receipt_id:r?.insertId, receipt_no:no, total:totalAmount, qty:totalQty } });
+    res.status(201).json({ success:true, data:{ receipt_id:r?.id, receipt_no:no, total:totalAmount, qty:totalQty } });
   } catch (err) { next(err); }
 });
 
@@ -218,27 +218,30 @@ router.post('/sale',
       const seq = await db.queryOne('SELECT COALESCE(MAX(id),0) AS m FROM receipts');
       const no  = `REC-${String(Number(seq.m)+1).padStart(6,'0')}`;
 
-      const [r] = await db.query(
+      const r = await db.queryOne(
         `INSERT INTO receipts (receipt_no,customer_id,customer_type,receipt_date,milk_qty,milk_amount,
           products_amount,total_amount,paid_amount,status,notes,shop_id,created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'paid',$10,$11,$12) RETURNING id`,
         [no,customer_id||null,customer_type,sale_date||new Date().toISOString().slice(0,10),
          milkQtyNum,milkAmount.toFixed(2),productsAmount.toFixed(2),total.toFixed(2),total.toFixed(2),notes||null,shop_id||null,req.user.id]
       );
+      const receiptId = r?.id;
 
       // Insert line items + reduce stock
       for (const item of items) {
-        await db.query(
-          'INSERT INTO receipt_items (receipt_id,product_id,product_name,qty,price,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-          [r?.insertId,item.product_id,item.product_name,item.qty,item.price,(item.qty*item.price).toFixed(2)]
-        );
+        if (receiptId) {
+          await db.query(
+            'INSERT INTO receipt_items (receipt_id,product_id,product_name,qty,price,amount) VALUES ($1,$2,$3,$4,$5,$6)',
+            [receiptId,item.product_id,item.product_name,item.qty,item.price,(item.qty*item.price).toFixed(2)]
+          );
+        }
         await db.query('UPDATE products SET stock_qty=GREATEST(0,stock_qty-$1) WHERE id=$2', [item.qty,item.product_id]);
       }
 
       // Auto-create invoice for cash-in
       const invSeq = await db.queryOne('SELECT COALESCE(MAX(id),0) AS m FROM invoices');
       const invNo  = `INV-${String(Number(invSeq?.m||0)+1).padStart(6,'0')}`;
-      const [invR] = await db.query(
+      const invR = await db.queryOne(
         `INSERT INTO invoices (invoice_no,customer_id,customer_type,customer_name,invoice_date,
            subtotal,discount,tax_pct,tax_amount,total_amount,paid_amount,status,notes,created_by)
          VALUES ($1,$2,$3,$4,CURRENT_DATE,$5,0,0,0,$6,$7,'paid',$8,$9) RETURNING id`,
@@ -247,17 +250,20 @@ router.post('/sale',
          total.toFixed(2), total.toFixed(2), total.toFixed(2),
          notes||null, req.user.id]
       );
+      const invoiceId = invR?.id;
       // Insert invoice items
-      if (parseFloat(milk_qty)>0) {
-        await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-          [invR?.insertId, 'Milk', milk_qty, 'L', milk_rate, milkAmount.toFixed(2)]);
-      }
-      for (const item of items) {
-        await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-          [invR?.insertId, item.product_name, item.qty, item.unit||'pcs', item.price, (item.qty*item.price).toFixed(2)]);
+      if (invoiceId) {
+        if (parseFloat(milk_qty)>0) {
+          await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
+            [invoiceId, 'Milk', milk_qty, 'L', milk_rate, milkAmount.toFixed(2)]);
+        }
+        for (const item of items) {
+          await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
+            [invoiceId, item.product_name, item.qty, item.unit||'pcs', item.price, (item.qty*item.price).toFixed(2)]);
+        }
       }
 
-      res.status(201).json({ success:true, data:{ receipt_id:r?.insertId, receipt_no:no, invoice_no:invNo, invoice_id:invR?.insertId, total } });
+      res.status(201).json({ success:true, data:{ receipt_id:receiptId, receipt_no:no, invoice_no:invNo, invoice_id:invoiceId, total } });
     } catch (err) { next(err); }
   }
 );

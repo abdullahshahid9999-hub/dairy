@@ -20,7 +20,7 @@ router.post('/', adminOnly, async (req, res, next) => {
     const { shop_name, location, ownership_type='owned',
             owner_name, owner_phone, monthly_rent, rent_due_day } = req.body;
     if (!shop_name) return res.status(400).json({success:false,message:'Shop name required'});
-    const [r] = await db.query(
+    const r = await db.queryOne(
       `INSERT INTO shops (shop_name,location,ownership_type,owner_name,owner_phone,
          monthly_rent,rent_due_day,is_active,created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8) RETURNING id`,
@@ -31,7 +31,7 @@ router.post('/', adminOnly, async (req, res, next) => {
        ownership_type==='rented'?rent_due_day||null:null,
        req.user.id]
     );
-    res.status(201).json({success:true,data:{id:r?.insertId}});
+    res.status(201).json({success:true,data:{id:r?.id}});
   } catch(err){next(err);}
 });
 
@@ -83,7 +83,7 @@ router.patch('/:id/rent', adminOnly, async (req, res, next) => {
          `Shop rent: ${paid_for}`, 'shop', req.params.id, req.user.id]
       );
     }
-    res.status(201).json({success:true,data:{id:r?.insertId}});
+    res.status(201).json({success:true,data:{id:r?.id}});
   } catch(err){next(err);}
 });
 

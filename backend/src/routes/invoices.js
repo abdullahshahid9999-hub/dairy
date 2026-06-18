@@ -50,7 +50,7 @@ router.post('/', adminOnly,
       const tax_amount = (subtotal-parseFloat(discount))*(parseFloat(tax_pct)/100);
       const total = subtotal - parseFloat(discount) + tax_amount;
       const no = await genNo();
-      const [r] = await db.query(
+      const r = await db.queryOne(
         `INSERT INTO invoices (invoice_no,customer_id,customer_type,customer_name,invoice_date,due_date,period_start,period_end,
           subtotal,discount,tax_pct,tax_amount,total_amount,status,notes,created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'unpaid',$14,$15) RETURNING id`,
@@ -60,7 +60,7 @@ router.post('/', adminOnly,
       for(const item of items){
         const amt=parseFloat(item.qty)*parseFloat(item.rate);
         await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-          [r?.insertId,item.description,item.qty,item.unit||'L',item.rate,amt.toFixed(2)]);
+          [r?.id,item.description,item.qty,item.unit||'L',item.rate,amt.toFixed(2)]);
       }
       res.status(201).json({success:true,data:{id:r?.id,invoice_no:no,total}});
     } catch(err){next(err);}

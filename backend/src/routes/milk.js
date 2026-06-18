@@ -154,7 +154,7 @@ router.post('/', async (req, res, next) => {
     let insertedId;
 
     if (migrated) {
-      const [result] = await db.query(
+      const result = await db.queryOne(
         `INSERT INTO milk_records
            (farmer_id, collection_date, collection_time, quantity_liters, fat_percentage,
             snf_percentage, lactometer_reading, ts_value, standardised_ts, snf_computed,
@@ -166,10 +166,10 @@ router.post('/', async (req, res, next) => {
          lr, ts, standardised_ts, snf_computed,
          sp_gravity, rate_per_unit, total_payout, shop_id || null, notes || null, req.user.id]
       );
-      insertedId = result.insertId;
+      insertedId = result.id;
     } else {
       // Fallback: insert without new columns (pre-migration)
-      const [result] = await db.query(
+      const result = await db.queryOne(
         `INSERT INTO milk_records
            (farmer_id, collection_date, quantity_liters, fat_percentage,
             snf_percentage, computed_rate, total_amount, notes, recorded_by)
@@ -179,7 +179,7 @@ router.post('/', async (req, res, next) => {
          fat, snf_percentage ? parseFloat(snf_percentage) : null,
          rate_per_unit, total_payout, notes || null, req.user.id]
       );
-      insertedId = result.insertId;
+      insertedId = result.id;
     }
 
     if (isPurchase(req.user)) {
