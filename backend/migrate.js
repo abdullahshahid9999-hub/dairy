@@ -61,6 +61,122 @@ const steps = [
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(employee_id, payroll_month)
   )`,
+
+  // ── Core business tables ─────────────────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS customers (
+    id            BIGSERIAL PRIMARY KEY,
+    customer_code VARCHAR(20) UNIQUE NOT NULL,
+    name          VARCHAR(150) NOT NULL,
+    phone         VARCHAR(20),
+    address       TEXT,
+    customer_type VARCHAR(20) NOT NULL DEFAULT 'walkin',
+    company_name  VARCHAR(150),
+    cnic          VARCHAR(20),
+    daily_qty     NUMERIC(10,2) DEFAULT 0,
+    rate_per_liter NUMERIC(10,4) DEFAULT 0,
+    credit_limit  NUMERIC(10,2) DEFAULT 0,
+    payment_terms VARCHAR(30) DEFAULT 'monthly',
+    outstanding   NUMERIC(10,2) DEFAULT 0,
+    is_active     BOOLEAN DEFAULT TRUE,
+    created_by    BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS products (
+    id          BIGSERIAL PRIMARY KEY,
+    name        VARCHAR(150) NOT NULL,
+    sku         VARCHAR(50) UNIQUE,
+    unit        VARCHAR(20) DEFAULT 'kg',
+    price       NUMERIC(10,2) NOT NULL DEFAULT 0,
+    stock_qty   NUMERIC(10,3) DEFAULT 0,
+    is_active   BOOLEAN DEFAULT TRUE,
+    created_by  BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS receipts (
+    id               BIGSERIAL PRIMARY KEY,
+    receipt_no       VARCHAR(30) UNIQUE NOT NULL,
+    customer_id      BIGINT REFERENCES customers(id) ON DELETE SET NULL,
+    customer_type    VARCHAR(20),
+    receipt_date     DATE NOT NULL DEFAULT CURRENT_DATE,
+    period_start     DATE,
+    period_end       DATE,
+    milk_qty         NUMERIC(10,3) DEFAULT 0,
+    milk_amount      NUMERIC(10,2) DEFAULT 0,
+    products_amount  NUMERIC(10,2) DEFAULT 0,
+    total_amount     NUMERIC(10,2) NOT NULL DEFAULT 0,
+    paid_amount      NUMERIC(10,2) DEFAULT 0,
+    status           VARCHAR(20) DEFAULT 'paid',
+    notes            TEXT,
+    shop_id          BIGINT REFERENCES shops(id) ON DELETE SET NULL,
+    created_by       BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS receipt_items (
+    id          BIGSERIAL PRIMARY KEY,
+    receipt_id  BIGINT NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
+    product_id  BIGINT REFERENCES products(id) ON DELETE SET NULL,
+    product_name VARCHAR(150),
+    qty         NUMERIC(10,3) NOT NULL,
+    price       NUMERIC(10,2) NOT NULL,
+    amount      NUMERIC(10,2) NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS invoices (
+    id             BIGSERIAL PRIMARY KEY,
+    invoice_no     VARCHAR(30) UNIQUE NOT NULL,
+    customer_id    BIGINT REFERENCES customers(id) ON DELETE SET NULL,
+    customer_type  VARCHAR(20),
+    customer_name  VARCHAR(150),
+    invoice_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    subtotal       NUMERIC(10,2) DEFAULT 0,
+    discount       NUMERIC(10,2) DEFAULT 0,
+    tax_pct        NUMERIC(5,2) DEFAULT 0,
+    tax_amount     NUMERIC(10,2) DEFAULT 0,
+    total_amount   NUMERIC(10,2) NOT NULL DEFAULT 0,
+    paid_amount    NUMERIC(10,2) DEFAULT 0,
+    status         VARCHAR(20) DEFAULT 'pending',
+    notes          TEXT,
+    created_by     BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS invoice_items (
+    id           BIGSERIAL PRIMARY KEY,
+    invoice_id   BIGINT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    description  VARCHAR(200),
+    qty          NUMERIC(10,3) NOT NULL DEFAULT 1,
+    unit         VARCHAR(20) DEFAULT 'pcs',
+    rate         NUMERIC(10,4) DEFAULT 0,
+    amount       NUMERIC(10,2) NOT NULL DEFAULT 0,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS bulk_ledger (
+    id           BIGSERIAL PRIMARY KEY,
+    customer_id  BIGINT NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
+    entry_date   DATE NOT NULL,
+    qty_liters   NUMERIC(10,3) NOT NULL,
+    rate         NUMERIC(10,4) NOT NULL,
+    amount       NUMERIC(10,2) NOT NULL,
+    notes        TEXT,
+    recorded_by  BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS expense_categories (
+    id   BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+  )`,
+  `CREATE TABLE IF NOT EXISTS expenses (
+    id             BIGSERIAL PRIMARY KEY,
+    category_id    BIGINT REFERENCES expense_categories(id) ON DELETE SET NULL,
+    expense_date   DATE NOT NULL,
+    amount         NUMERIC(10,2) NOT NULL,
+    description    TEXT,
+    reference_type VARCHAR(30),
+    reference_id   BIGINT,
+    created_by     BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `INSERT INTO expense_categories (name) VALUES ('Shop Rent'),('Staff Salary'),('Vehicle'),('Maintenance'),('Other')
+   ON CONFLICT (name) DO NOTHING`,
 ];
 
 (async () => {

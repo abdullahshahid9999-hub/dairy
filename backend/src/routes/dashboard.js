@@ -230,6 +230,23 @@ staffDashRouter.get('/', async (req, res, next) => {
       return rows;
     }, []);
 
+    // Shop stock for sales staff
+    const shopId = req.user.shop_id;
+    let shop_stock = 0;
+    if (shopId) {
+      const stockRow = await safeQuery(
+        () => db.queryOne(
+          `SELECT GREATEST(0,
+             COALESCE((SELECT SUM(quantity_liters) FROM milk_records WHERE shop_id=$1),0)
+           - COALESCE((SELECT SUM(milk_qty) FROM receipts WHERE shop_id=$1 AND milk_qty>0),0)
+           ) AS available`,
+          [shopId]
+        ),
+        { available: 0 }
+      );
+      shop_stock = parseFloat(stockRow?.available || 0);
+    }
+
     res.json({
       success: true,
       data: {
@@ -240,6 +257,7 @@ staffDashRouter.get('/', async (req, res, next) => {
           avg_fat:      parseFloat(kpi?.avg_fat      || 0),
           entries:      parseInt(kpi?.entries        || 0),
         },
+        shop_stock,
         details: details || [],
       },
     });
