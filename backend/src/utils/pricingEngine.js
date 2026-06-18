@@ -40,7 +40,7 @@ function validateConfig(cfg) {
  * Main calculation
  * Returns: { ts, standardised_ts, snf_computed, rate_per_unit, total_payout }
  */
-function computeTS({ cfg = {}, fat, lr, weight }) {
+function computeTS({ cfg = {}, fat, lr, weight, temperature }) {
   validateConfig(cfg);
 
   const c1    = getNum(cfg, 'constant_c1');    // 0.22
@@ -50,12 +50,23 @@ function computeTS({ cfg = {}, fat, lr, weight }) {
   const ts_t  = getNum(cfg, 'target_ts');      // 13
   const brate = getNum(cfg, 'base_rate');
 
-  const f = parseFloat(fat);
-  const l = parseFloat(lr);
-  const w = parseFloat(weight);
+  const f    = parseFloat(fat);
+  const l    = parseFloat(lr);
+  const w    = parseFloat(weight);
+  const temp = (temperature !== undefined && temperature !== null && !isNaN(parseFloat(temperature)))
+               ? parseFloat(temperature) : null;
 
-  // Step 1: X = (c1 * fat) + c2 + (LR / c3) + fat
-  const X = (c1 * f) + c2 + (l / c3) + f;
+  // CLR (Corrected Lactometer Reading):
+  //   if temp >= 27 → CLR = LR + (temp - 27)
+  //   if temp < 27 or not given → CLR = LR + 1  (treat (temp-27) as 1)
+  const tempCorrection = (temp !== null && temp >= 27) ? (temp - 27) : 1;
+  const clr = l + tempCorrection;
+
+  // SNF = (CLR / 4) + (0.22 × Fat%) + 0.72  [correct formula]
+  const snf_computed = (clr / c3) + (c1 * f) + c2;
+
+  // Step 1: X (TS) = SNF + Fat
+  const X = snf_computed + f;
 
   // Step 2: standardised_ts = X * (scale / target_ts)
   const standardised_ts = X * (scale / ts_t);
@@ -66,11 +77,8 @@ function computeTS({ cfg = {}, fat, lr, weight }) {
   // Step 4: total payout
   const total_payout = rate_per_unit * w;
 
-  // SNF derived: LR/4 + 0.2 (display only)
-  const snf_computed = (l / c3) + 0.2;
-
-  // Sp. Gravity (display only): 1 + LR/1000
-  const sp_gravity = 1 + (l / 1000);
+  // Sp. Gravity (display only): 1 + CLR/1000
+  const sp_gravity = 1 + (clr / 1000);
 
   return {
     ts:              parseFloat(X.toFixed(4)),

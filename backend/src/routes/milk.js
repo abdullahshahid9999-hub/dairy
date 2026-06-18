@@ -90,7 +90,7 @@ router.get('/', async (req, res, next) => {
 // ── POST preview-rate ─────────────────────────────────────────────────────────
 router.post('/preview-rate', async (req, res, next) => {
   try {
-    const { fat_percentage, lactometer_reading, quantity_liters, target_ts } = req.body;
+    const { fat_percentage, lactometer_reading, quantity_liters, target_ts, temperature } = req.body;
     if (!fat_percentage || !lactometer_reading || !quantity_liters)
       return res.status(400).json({ success: false, message: 'fat_percentage, lactometer_reading, quantity_liters required.' });
 
@@ -102,6 +102,7 @@ router.post('/preview-rate', async (req, res, next) => {
       cfg,
       fat:    parseFloat(fat_percentage),
       lr:     parseFloat(lactometer_reading),
+      temperature,
       weight: parseFloat(quantity_liters),
     });
 
@@ -123,7 +124,7 @@ router.post('/', async (req, res, next) => {
   try {
     const {
       farmer_id, collection_date, quantity_liters, fat_percentage,
-      lactometer_reading, snf_percentage, shop_id: bodyShopId, notes, target_ts
+      lactometer_reading, snf_percentage, shop_id: bodyShopId, notes, target_ts, temperature
     } = req.body;
 
     // Staff always get their assigned shop — admin can specify manually
@@ -153,7 +154,7 @@ router.post('/', async (req, res, next) => {
     const lr = lactometer_reading ? parseFloat(lactometer_reading) : 0;
 
     const { ts, standardised_ts, snf_computed, sp_gravity, rate_per_unit, total_payout } = computeTS({
-      cfg, fat, lr, weight: qty,
+      cfg, fat, lr, weight: qty, temperature,
     });
 
     const collection_time = new Date().toISOString();

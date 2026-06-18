@@ -13,6 +13,7 @@ const emptyForm = () => ({
   quantity_liters:    '',
   fat_percentage:     '',
   lactometer_reading: '',
+  temperature:        '',
   target_ts:          '13',
   shop_id:            '',
   notes:              '',
@@ -88,13 +89,14 @@ export default function MilkEntry() {
         lactometer_reading: parseFloat(lr),
         quantity_liters:    parseFloat(qty),
         target_ts:          parseFloat(form.target_ts) || 13,
+        temperature:        form.temperature !== '' ? parseFloat(form.temperature) : undefined,
       })
         .then(r => setPreview(r.data.data))
         .catch(() => setPreview(null))
         .finally(() => setPrevLoad(false));
     }, 600);
     return () => clearTimeout(debounce.current);
-  }, [form.fat_percentage, form.lactometer_reading, form.quantity_liters, form.target_ts]);
+  }, [form.fat_percentage, form.lactometer_reading, form.quantity_liters, form.target_ts, form.temperature]);
 
   const validate = () => {
     const e = {};
@@ -117,6 +119,7 @@ export default function MilkEntry() {
         quantity_liters:    parseFloat(form.quantity_liters),
         fat_percentage:     parseFloat(form.fat_percentage),
         lactometer_reading: form.lactometer_reading ? parseFloat(form.lactometer_reading) : undefined,
+        temperature:        form.temperature !== '' ? parseFloat(form.temperature) : undefined,
         target_ts:          parseFloat(form.target_ts) || 13,
         shop_id:            form.shop_id ? parseInt(form.shop_id, 10) : undefined,
         notes:              form.notes || undefined,
@@ -266,14 +269,31 @@ export default function MilkEntry() {
           </div>
         </div>
 
-        {/* TS Standard */}
-        <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-            TS Standard <span className="normal-case font-normal text-slate-400">(default: 13)</span>
-          </label>
-          <input type="number" inputMode="decimal" step="0.01" placeholder="13"
-            value={form.target_ts} onChange={set('target_ts')}
-            className={`${inputBase} py-3 text-base font-mono text-center text-slate-600 border-slate-200`}/>
+        {/* Temperature + TS Standard */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+              Temp (°C)
+              <span className="normal-case font-normal text-slate-400 ml-1">(for CLR)</span>
+            </label>
+            <input type="number" inputMode="decimal" step="0.1" placeholder="27"
+              value={form.temperature} onChange={set('temperature')}
+              className={`${inputBase} py-3 text-base font-mono text-center text-orange-600 border-slate-200`}/>
+            <p className="text-xs text-slate-400 mt-1">
+              {form.temperature === '' ? 'Leave blank → CLR = LR + 1' :
+               parseFloat(form.temperature) >= 27
+                 ? `CLR = LR + ${(parseFloat(form.temperature)-27).toFixed(1)}`
+                 : 'Temp < 27 → CLR = LR + 1'}
+            </p>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+              TS Standard <span className="normal-case font-normal text-slate-400">(default: 13)</span>
+            </label>
+            <input type="number" inputMode="decimal" step="0.01" placeholder="13"
+              value={form.target_ts} onChange={set('target_ts')}
+              className={`${inputBase} py-3 text-base font-mono text-center text-slate-600 border-slate-200`}/>
+          </div>
         </div>
 
         {/* Drop to Shop */}
