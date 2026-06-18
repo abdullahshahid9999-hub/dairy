@@ -1,27 +1,20 @@
 /**
  * Brimi Dairy Pricing Engine
  *
- * Formula (from email):
- *   X    = (0.22 × fat) + 0.72 + (LR / 4) + fat
- *   13TS = X × (200 / 13)          ← "standardised_ts"
- *   PURCHASE RATE = 13TS × base_rate
- *   TOTAL = PURCHASE RATE × milk_weight
- *
- * SNF (derived, for display only):
- *   SNF = (LR / 4) + 0.2
- *
- * Config keys in settings table:
- *   target_ts (13), base_rate, constant_c1 (0.22), constant_c2 (0.72),
- *   constant_c3 (4), constant_scale (200)
+ * Formulas:
+ *   SP Gravity      = (LR / 1000) + 1
+ *   SNF%            = (LR / 4) + (0.21 × Fat%) + 0.36
+ *   TS%             = Fat% + SNF%
+ *   Weight (kg)     = Liters × SP Gravity
+ *   Dry Solids Wt   = Weight_kg × (TS% / 100)
+ *   Std Qty         = Weight_kg × (TS% / Std_TS%)
+ *   Purchase Rate   = Std_TS% × base_rate
+ *   Total Payout    = Purchase_Rate × Weight_kg
  */
 
 const DEFAULT = {
-  target_ts:      13,
-  base_rate:      1,
-  constant_c1:    0.22,
-  constant_c2:    0.72,
-  constant_c3:    4,
-  constant_scale: 200,
+  target_ts:   13,
+  base_rate:   1,
 };
 
 function getNum(cfg, key) {
@@ -30,61 +23,60 @@ function getNum(cfg, key) {
 }
 
 function validateConfig(cfg) {
-  const t  = getNum(cfg, 'target_ts');
-  const c3 = getNum(cfg, 'constant_c3');
-  if (t  === 0) throw new Error('target_ts cannot be zero — update Settings.');
-  if (c3 === 0) throw new Error('constant_c3 (LR divisor) cannot be zero — update Settings.');
+  const t = getNum(cfg, 'target_ts');
+  if (t === 0) throw new Error('target_ts cannot be zero — update Settings.');
 }
 
 /**
  * Main calculation
- * Returns: { ts, standardised_ts, snf_computed, rate_per_unit, total_payout }
+ * @param {object} cfg        - pricing config from DB (target_ts, base_rate)
+ * @param {number} fat        - Fat%
+ * @param {number} lr         - Lactometer Reading
+ * @param {number} weight     - quantity in Liters (input from user)
+ *
+ * Returns all display values + payout
  */
-function computeTS({ cfg = {}, fat, lr, weight, temperature }) {
+function computeTS({ cfg = {}, fat, lr, weight }) {
   validateConfig(cfg);
 
-  const c1    = getNum(cfg, 'constant_c1');    // 0.22
-  const c2    = getNum(cfg, 'constant_c2');    // 0.72
-  const c3    = getNum(cfg, 'constant_c3');    // 4
-  const scale = getNum(cfg, 'constant_scale'); // 200
-  const ts_t  = getNum(cfg, 'target_ts');      // 13
+  const ts_t  = getNum(cfg, 'target_ts');   // Std TS% (default 13)
   const brate = getNum(cfg, 'base_rate');
 
-  const f    = parseFloat(fat);
-  const l    = parseFloat(lr);
-  const w    = parseFloat(weight);
-  const temp = (temperature !== undefined && temperature !== null && !isNaN(parseFloat(temperature)))
-               ? parseFloat(temperature) : null;
+  const f = parseFloat(fat);
+  const l = parseFloat(lr);
+  const w = parseFloat(weight);             // liters
 
-  // CLR (Corrected Lactometer Reading):
-  //   if temp >= 27 → CLR = LR + (temp - 27)
-  //   if temp < 27 or not given → CLR = LR + 1  (treat (temp-27) as 1)
-  const tempCorrection = (temp !== null && temp >= 27) ? (temp - 27) : 1;
-  const clr = l + tempCorrection;
+  // 1. Specific Gravity
+  const sp_gravity = (l / 1000) + 1;
 
-  // SNF = (CLR / 4) + (0.22 × Fat%) + 0.72  [correct formula]
-  const snf_computed = (clr / c3) + (c1 * f) + c2;
+  // 2. SNF%
+  const snf_computed = (l / 4) + (0.21 * f) + 0.36;
 
-  // Step 1: X (TS) = SNF + Fat
-  const X = snf_computed + f;
+  // 3. TS%
+  const ts = f + snf_computed;
 
-  // Step 2: standardised_ts = X * (scale / target_ts)
-  const standardised_ts = X * (scale / ts_t);
+  // 4. Weight in kg
+  const milk_kg = w * sp_gravity;
 
-  // Step 3: purchase_rate = standardised_ts * base_rate
+  // 5. Dry Solids Weight
+  const dry_solids = milk_kg * (ts / 100);
+
+  // 6. Standardized Qty = milk_kg × (TS% / Std_TS%)
+  const standardised_ts = milk_kg * (ts / ts_t);
+
+  // 7. Purchase Rate = Std_TS × base_rate
   const rate_per_unit = standardised_ts * brate;
 
-  // Step 4: total payout
-  const total_payout = rate_per_unit * w;
-
-  // Sp. Gravity (display only): 1 + CLR/1000
-  const sp_gravity = 1 + (clr / 1000);
+  // 8. Total Payout = Purchase_Rate × milk_kg
+  const total_payout = rate_per_unit * milk_kg;
 
   return {
-    ts:              parseFloat(X.toFixed(4)),
+    ts:              parseFloat(ts.toFixed(4)),
+    snf_computed:    parseFloat(snf_computed.toFixed(4)),
+    sp_gravity:      parseFloat(sp_gravity.toFixed(4)),
+    milk_kg:         parseFloat(milk_kg.toFixed(4)),
+    dry_solids:      parseFloat(dry_solids.toFixed(4)),
     standardised_ts: parseFloat(standardised_ts.toFixed(4)),
-    snf_computed:    parseFloat(snf_computed.toFixed(3)),
-    sp_gravity:      parseFloat(sp_gravity.toFixed(3)),
     rate_per_unit:   parseFloat(rate_per_unit.toFixed(4)),
     total_payout:    parseFloat(total_payout.toFixed(2)),
   };

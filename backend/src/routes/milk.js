@@ -90,7 +90,7 @@ router.get('/', async (req, res, next) => {
 // ── POST preview-rate ─────────────────────────────────────────────────────────
 router.post('/preview-rate', async (req, res, next) => {
   try {
-    const { fat_percentage, lactometer_reading, quantity_liters, target_ts, temperature } = req.body;
+    const { fat_percentage, lactometer_reading, quantity_liters, target_ts } = req.body;
     if (!fat_percentage || !lactometer_reading || !quantity_liters)
       return res.status(400).json({ success: false, message: 'fat_percentage, lactometer_reading, quantity_liters required.' });
 
@@ -102,19 +102,10 @@ router.post('/preview-rate', async (req, res, next) => {
       cfg,
       fat:    parseFloat(fat_percentage),
       lr:     parseFloat(lactometer_reading),
-      temperature,
       weight: parseFloat(quantity_liters),
     });
 
-    if (isPurchase(req.user)) {
-      return res.json({ success: true, data: {
-        ts:              result.ts,
-        standardised_ts: result.standardised_ts,
-        snf_computed:    result.snf_computed,
-        sp_gravity:      result.sp_gravity,
-      }});
-    }
-
+    // Purchase staff & admin both get full result
     res.json({ success: true, data: result });
   } catch (err) { next(err); }
 });
@@ -124,7 +115,7 @@ router.post('/', async (req, res, next) => {
   try {
     const {
       farmer_id, collection_date, quantity_liters, fat_percentage,
-      lactometer_reading, snf_percentage, shop_id: bodyShopId, notes, target_ts, temperature
+      lactometer_reading, snf_percentage, shop_id: bodyShopId, notes, target_ts
     } = req.body;
 
     // Staff always get their assigned shop — admin can specify manually
@@ -153,8 +144,8 @@ router.post('/', async (req, res, next) => {
 
     const lr = lactometer_reading ? parseFloat(lactometer_reading) : 0;
 
-    const { ts, standardised_ts, snf_computed, sp_gravity, rate_per_unit, total_payout } = computeTS({
-      cfg, fat, lr, weight: qty, temperature,
+    const { ts, standardised_ts, snf_computed, sp_gravity, rate_per_unit, total_payout, milk_kg, dry_solids } = computeTS({
+      cfg, fat, lr, weight: qty,
     });
 
     const collection_time = new Date().toISOString();
@@ -192,9 +183,9 @@ router.post('/', async (req, res, next) => {
     }
 
     if (isPurchase(req.user)) {
-      return res.status(201).json({ success: true, message: 'Saved.', data: { id: insertedId, ts, standardised_ts, snf_computed, sp_gravity } });
+      return res.status(201).json({ success: true, message: 'Saved.', data: { id: insertedId, ts, standardised_ts, snf_computed, sp_gravity, milk_kg, dry_solids } });
     }
-    res.status(201).json({ success: true, message: 'Saved.', data: { id: insertedId, ts, standardised_ts, snf_computed, sp_gravity, rate_per_unit, total_payout } });
+    res.status(201).json({ success: true, message: 'Saved.', data: { id: insertedId, ts, standardised_ts, snf_computed, sp_gravity, milk_kg, dry_solids, rate_per_unit, total_payout } });
   } catch (err) { next(err); }
 });
 

@@ -13,7 +13,6 @@ const emptyForm = () => ({
   quantity_liters:    '',
   fat_percentage:     '',
   lactometer_reading: '',
-  temperature:        '',
   target_ts:          '13',
   shop_id:            '',
   notes:              '',
@@ -89,14 +88,13 @@ export default function MilkEntry() {
         lactometer_reading: parseFloat(lr),
         quantity_liters:    parseFloat(qty),
         target_ts:          parseFloat(form.target_ts) || 13,
-        temperature:        form.temperature !== '' ? parseFloat(form.temperature) : undefined,
       })
         .then(r => setPreview(r.data.data))
         .catch(() => setPreview(null))
         .finally(() => setPrevLoad(false));
     }, 600);
     return () => clearTimeout(debounce.current);
-  }, [form.fat_percentage, form.lactometer_reading, form.quantity_liters, form.target_ts, form.temperature]);
+  }, [form.fat_percentage, form.lactometer_reading, form.quantity_liters, form.target_ts]);
 
   const validate = () => {
     const e = {};
@@ -119,7 +117,6 @@ export default function MilkEntry() {
         quantity_liters:    parseFloat(form.quantity_liters),
         fat_percentage:     parseFloat(form.fat_percentage),
         lactometer_reading: form.lactometer_reading ? parseFloat(form.lactometer_reading) : undefined,
-        temperature:        form.temperature !== '' ? parseFloat(form.temperature) : undefined,
         target_ts:          parseFloat(form.target_ts) || 13,
         shop_id:            form.shop_id ? parseInt(form.shop_id, 10) : undefined,
         notes:              form.notes || undefined,
@@ -132,18 +129,25 @@ export default function MilkEntry() {
       const lr     = parseFloat(form.lactometer_reading);
       const litres = parseFloat(form.quantity_liters);
       const ts_std = parseFloat(form.target_ts) || 13;
-      const X      = (0.22 * fat) + 0.72 + (lr / 4) + fat;
-      const sp_gravity = 1 + (lr / 1000);
+
+      // Formulas (fallback if backend didn't return values)
+      const sp_gravity   = data.sp_gravity    || (lr / 1000) + 1;
+      const snf          = data.snf_computed  || (lr / 4) + (0.21 * fat) + 0.36;
+      const ts           = data.ts            || (fat + snf);
+      const milk_kg      = litres * sp_gravity;
+      const std_qty      = data.standardised_ts || (milk_kg * (ts / ts_std));
+      const dry_solids   = data.dry_solids    || (milk_kg * (ts / 100));
 
       setResult({
         centre:          centre?.centre_name || centre?.name || '',
         shop:            shop?.shop_name || '',
-        snf:             (data.snf_computed || ((lr/4)+0.2)).toFixed(3),
-        ts:              (data.ts || X).toFixed(3),
-        standardised_ts: (data.standardised_ts || X*(200/ts_std)).toFixed(3),
-        ts_milk_qty:     (litres > 0 && X > 0 ? (litres * ts_std) / X : 0).toFixed(3),
-        milk_kg:         (litres * (data.sp_gravity || sp_gravity)).toFixed(1),
-        sp_gravity:      (data.sp_gravity || sp_gravity).toFixed(3),
+        snf:             snf.toFixed(3),
+        ts:              ts.toFixed(3),
+        standardised_ts: std_qty.toFixed(3),
+        ts_milk_qty:     std_qty.toFixed(3),
+        milk_kg:         milk_kg.toFixed(3),
+        sp_gravity:      sp_gravity.toFixed(4),
+        dry_solids:      dry_solids.toFixed(3),
       });
 
       toast.success('✓ Saved');
@@ -269,31 +273,14 @@ export default function MilkEntry() {
           </div>
         </div>
 
-        {/* Temperature + TS Standard */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-              Temp (°C)
-              <span className="normal-case font-normal text-slate-400 ml-1">(for CLR)</span>
-            </label>
-            <input type="number" inputMode="decimal" step="0.1" placeholder="27"
-              value={form.temperature} onChange={set('temperature')}
-              className={`${inputBase} py-3 text-base font-mono text-center text-orange-600 border-slate-200`}/>
-            <p className="text-xs text-slate-400 mt-1">
-              {form.temperature === '' ? 'Leave blank → CLR = LR + 1' :
-               parseFloat(form.temperature) >= 27
-                 ? `CLR = LR + ${(parseFloat(form.temperature)-27).toFixed(1)}`
-                 : 'Temp < 27 → CLR = LR + 1'}
-            </p>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-              TS Standard <span className="normal-case font-normal text-slate-400">(default: 13)</span>
-            </label>
-            <input type="number" inputMode="decimal" step="0.01" placeholder="13"
-              value={form.target_ts} onChange={set('target_ts')}
-              className={`${inputBase} py-3 text-base font-mono text-center text-slate-600 border-slate-200`}/>
-          </div>
+        {/* TS Standard */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+            Std. TS% <span className="normal-case font-normal text-slate-400">(default: 13)</span>
+          </label>
+          <input type="number" inputMode="decimal" step="0.01" placeholder="13"
+            value={form.target_ts} onChange={set('target_ts')}
+            className={`${inputBase} py-3 text-base font-mono text-center text-slate-600 border-slate-200`}/>
         </div>
 
         {/* Drop to Shop */}
@@ -336,12 +323,14 @@ export default function MilkEntry() {
               {prevLoad && <RefreshCw size={12} className="animate-spin text-blue-400 ml-auto"/>}
             </div>
             {preview && !prevLoad && (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
-                  { l:'TS',              v: preview.ts,              c:'text-blue-700' },
-                  { l:'Standardised TS', v: preview.standardised_ts, c:'text-violet-700' },
-                  { l:'SNF',             v: preview.snf_computed,    c:'text-emerald-700' },
-                  { l:'Sp. Gravity',     v: preview.sp_gravity,      c:'text-slate-700' },
+                  { l:'SNF%',           v: preview.snf_computed    != null ? Number(preview.snf_computed).toFixed(3)    : '—', c:'text-emerald-700' },
+                  { l:'TS%',            v: preview.ts              != null ? Number(preview.ts).toFixed(3)              : '—', c:'text-blue-700' },
+                  { l:'Sp. Gravity',    v: preview.sp_gravity      != null ? Number(preview.sp_gravity).toFixed(4)      : '—', c:'text-slate-600' },
+                  { l:'Milk (kg)',      v: preview.milk_kg         != null ? Number(preview.milk_kg).toFixed(3)         : '—', c:'text-orange-600' },
+                  { l:'Dry Solids kg',  v: preview.dry_solids      != null ? Number(preview.dry_solids).toFixed(3)      : '—', c:'text-purple-700' },
+                  { l:'Std Qty (kg)',   v: preview.standardised_ts != null ? Number(preview.standardised_ts).toFixed(3) : '—', c:'text-violet-700' },
                 ].map(({ l, v, c }) => (
                   <div key={l} className="bg-white rounded-xl p-2.5 border border-blue-100 text-center">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{l}</p>
