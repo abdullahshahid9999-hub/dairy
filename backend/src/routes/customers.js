@@ -230,37 +230,46 @@ router.post('/sale',
       // Insert line items + reduce stock
       for (const item of items) {
         if (receiptId) {
-          await db.query(
-            'INSERT INTO receipt_items (receipt_id,product_id,product_name,qty,price,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-            [receiptId,item.product_id,item.product_name,item.qty,item.price,(item.qty*item.price).toFixed(2)]
-          );
+          try {
+            await db.query(
+              'INSERT INTO receipt_items (receipt_id,product_id,product_name,qty,price,amount) VALUES ($1,$2,$3,$4,$5,$6)',
+              [receiptId,item.product_id,item.product_name,item.qty,item.price,(item.qty*item.price).toFixed(2)]
+            );
+          } catch(e) { console.error('receipt_items insert skipped:', e.message); }
         }
-        await db.query('UPDATE products SET stock_qty=GREATEST(0,stock_qty-$1) WHERE id=$2', [item.qty,item.product_id]);
+        try {
+          await db.query('UPDATE products SET stock_qty=GREATEST(0,stock_qty-$1) WHERE id=$2', [item.qty,item.product_id]);
+        } catch(e) {}
       }
 
       // Auto-create invoice for cash-in
-      const invSeq = await db.queryOne('SELECT COALESCE(MAX(id),0) AS m FROM invoices');
-      const invNo  = `INV-${String(Number(invSeq?.m||0)+1).padStart(6,'0')}`;
-      const invR = await db.queryOne(
-        `INSERT INTO invoices (invoice_no,customer_id,customer_type,customer_name,invoice_date,
-           subtotal,discount,tax_pct,tax_amount,total_amount,paid_amount,status,notes,created_by)
-         VALUES ($1,$2,$3,$4,CURRENT_DATE,$5,0,0,0,$6,$7,'paid',$8,$9) RETURNING id`,
-        [invNo, customer_id||null, customer_type,
-         customer_id ? (await db.queryOne('SELECT name FROM customers WHERE id=$1',[customer_id]))?.name : 'Walk-in',
-         total.toFixed(2), total.toFixed(2), total.toFixed(2),
-         notes||null, req.user.id]
-      );
-      const invoiceId = invR?.id;
-      // Insert invoice items
-      if (invoiceId) {
-        if (parseFloat(milk_qty)>0) {
-          await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-            [invoiceId, 'Milk', milk_qty, 'L', milk_rate, milkAmount.toFixed(2)]);
+      // Invoice creation — optional, sale completes even if invoices table missing
+      let invNo = null, invoiceId = null;
+      try {
+        const invSeq = await db.queryOne('SELECT COALESCE(MAX(id),0) AS m FROM invoices');
+        invNo  = `INV-${String(Number(invSeq?.m||0)+1).padStart(6,'0')}`;
+        const invR = await db.queryOne(
+          `INSERT INTO invoices (invoice_no,customer_id,customer_type,customer_name,invoice_date,
+             subtotal,discount,tax_pct,tax_amount,total_amount,paid_amount,status,notes,created_by)
+           VALUES ($1,$2,$3,$4,CURRENT_DATE,$5,0,0,0,$6,$7,'paid',$8,$9) RETURNING id`,
+          [invNo, customer_id||null, customer_type,
+           customer_id ? (await db.queryOne('SELECT name FROM customers WHERE id=$1',[customer_id]))?.name : 'Walk-in',
+           total.toFixed(2), total.toFixed(2), total.toFixed(2),
+           notes||null, req.user.id]
+        );
+        invoiceId = invR?.id;
+        if (invoiceId) {
+          if (parseFloat(milk_qty)>0) {
+            await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
+              [invoiceId, 'Milk', milk_qty, 'L', milk_rate, milkAmount.toFixed(2)]);
+          }
+          for (const item of items) {
+            await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
+              [invoiceId, item.product_name, item.qty, item.unit||'pcs', item.price, (item.qty*item.price).toFixed(2)]);
+          }
         }
-        for (const item of items) {
-          await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-            [invoiceId, item.product_name, item.qty, item.unit||'pcs', item.price, (item.qty*item.price).toFixed(2)]);
-        }
+      } catch(invErr) {
+        console.error('Invoice creation skipped (table may not exist yet):', invErr.message);
       }
 
       res.status(201).json({ success:true, data:{ receipt_id:receiptId, receipt_no:no, invoice_no:invNo, invoice_id:invoiceId, total } });
