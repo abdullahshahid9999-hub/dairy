@@ -93,6 +93,29 @@ app.use(passport.initialize());
 
 // ── API routes ─────────────────────────────────────────────────────────
 app.use('/api/auth',      require('./src/routes/auth'));
+
+// One-time admin seed — POST /api/seed-admin  { "secret": "SEED_SECRET_VALUE" }
+app.post('/api/seed-admin', async (req, res) => {
+  const { secret } = req.body || {};
+  if (!secret || secret !== (process.env.SEED_SECRET || 'brimi-seed-2025')) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  try {
+    const bcrypt = require('bcryptjs');
+    const hash = await bcrypt.hash('Pakistan@1947', 12);
+    const r = await pool.query(
+      `INSERT INTO users (name,email,password_hash,role,is_active,email_verified,department,permissions)
+       VALUES ($1,$2,$3,'admin',true,true,'admin','["*"]')
+       ON CONFLICT (email) DO UPDATE
+         SET name=EXCLUDED.name,password_hash=EXCLUDED.password_hash,
+             role='admin',is_active=true,email_verified=true,
+             department='admin',permissions='["*"]'
+       RETURNING id,name,email,role`,
+      ['Ghulam Fareed','abdullahshahid9999@gmail.com',hash]
+    );
+    res.json({ success:true, user: r.rows[0] });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.use('/api/farmers',   require('./src/routes/farmers'));
 app.use('/api/milk',      require('./src/routes/milk'));
 app.use('/api/billing',   require('./src/routes/billing'));
