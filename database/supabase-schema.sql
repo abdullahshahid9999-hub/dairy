@@ -415,7 +415,8 @@ INSERT INTO settings (key, value, description) VALUES
   ('logo_url',  '',             'Company logo — base64 or URL'),
   ('logo_name', 'Dairy ERP',    'Company name shown next to logo'),
   ('currency',  'PKR',          'Currency symbol'),
-  ('timezone',  'Asia/Karachi', 'Timezone')
+  ('timezone',  'Asia/Karachi', 'Timezone'),
+  ('admin_whatsapp', '', 'Admin WhatsApp number for purchase/sale alerts (e.g. 03001234567)')
 ON CONFLICT (key) DO NOTHING;
 
 -- Default admin user — password: Admin@1234

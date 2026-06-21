@@ -44,41 +44,14 @@ const validate = (req, res, next) => {
   next();
 };
 
-// POST /api/auth/register
-router.post('/register',
-  [
-    body('name').trim().notEmpty().withMessage('Name is required'),
-    body('email').trim().isEmail().normalizeEmail().withMessage('Valid email required'),
-    body('password').isLength({ min: 8 }).withMessage('Password min 8 chars')
-      .matches(/[A-Z]/).withMessage('Needs uppercase').matches(/[0-9]/).withMessage('Needs a number'),
-  ],
-  validate,
-  async (req, res) => {
-    try {
-      const { name, email, password } = req.body;
-      const existing = await db.queryOne('SELECT id FROM users WHERE email = $1', [email]);
-      if (existing) return res.status(409).json({ success: false, message: 'Email already registered.' });
-
-      const hash = await bcrypt.hash(password, 12);
-      const result = await db.queryOne(
-        `INSERT INTO users (name, email, password_hash, role, is_active, email_verified) VALUES ($1,$2,$3,'staff',true,true)`,
-        [name, email, hash]
-      );
-      const newUser = await db.queryOne('SELECT id, name, email, role FROM users WHERE id = $1', [result?.id]);
-
-      const accessToken  = makeAccessToken(newUser);
-      const refreshToken = makeRefreshToken(newUser);
-      const rtHash = await bcrypt.hash(refreshToken, 10);
-      await db.query('UPDATE users SET refresh_token_hash = $1 WHERE id = $2', [rtHash, newUser.id]);
-
-      return res.status(201).json({ success: true, message: 'Account created.', data: { accessToken, refreshToken, user: safeUser(newUser) } });
-    } catch (err) {
-      if (err.code === '23505') return res.status(409).json({ success: false, message: 'Email already registered.' });
-      console.error('[POST /register]', err.message);
-      return res.status(500).json({ success: false, message: 'Registration failed.' });
-    }
-  }
-);
+// POST /api/auth/register — DISABLED.
+// Accounts are created only by an admin (via the employee management panel),
+// which properly assigns department/shop/role. Public self-registration was
+// a security risk: anyone could create a 'staff' account with no department
+// and still reach the dashboard.
+router.post('/register', (req, res) => {
+  return res.status(403).json({ success: false, message: 'Self-registration is disabled. Contact your admin to get an account.' });
+});
 
 // POST /api/auth/login
 router.post('/login',

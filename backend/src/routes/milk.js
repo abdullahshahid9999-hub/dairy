@@ -4,6 +4,7 @@ const db       = require('../config/db');
 const { validate }                = require('../middleware/validate');
 const { authenticate, adminOnly } = require('../middleware/auth');
 const { computeTS, getPricingConfig } = require('../utils/pricingEngine');
+const whatsappService = require('../services/whatsappService');
 
 const router = express.Router();
 router.use(authenticate);
@@ -138,6 +139,14 @@ router.post('/', async (req, res, next) => {
     }
     const cd = collection_date || new Date().toISOString().slice(0, 10);
 
+    // Needed for the WhatsApp notification — fetch once, fail-safe
+    const farmer = await db.queryOne(
+      `SELECT name, phone FROM farmers WHERE id = $1`, [fid]
+    ).catch(() => null);
+    if (!farmer) {
+      return res.status(404).json({ success: false, message: 'Supplier not found.' });
+    }
+
     let cfg = {};
     try { cfg = await getPricingConfig(); } catch {}
     if (target_ts && parseFloat(target_ts) > 0) cfg.target_ts = parseFloat(target_ts);
@@ -181,6 +190,18 @@ router.post('/', async (req, res, next) => {
       );
       insertedId = result.id;
     }
+
+    // Fire-and-forget WhatsApp notification — admin + supplier.
+    // Wrapped so a WhatsApp failure can NEVER break or delay the purchase save.
+    whatsappService.notifyPurchase({
+      farmerName: farmer.name,
+      farmerPhone: farmer.phone,
+      liters: qty,
+      rate: rate_per_unit,
+      amount: total_payout,
+      date: cd,
+      recordId: insertedId,
+    }).catch(err => console.error('[whatsapp] notifyPurchase failed:', err.message));
 
     if (isPurchase(req.user)) {
       return res.status(201).json({ success: true, message: 'Saved.', data: { id: insertedId, ts, standardised_ts, snf_computed, sp_gravity, milk_kg, dry_solids } });

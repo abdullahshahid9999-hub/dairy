@@ -31,11 +31,6 @@ const allowedOrigins = rawOrigins
   .map(o => o.trim())
   .filter(Boolean);
 
-// 🔥 BULLETPROOF FIX: Agar environment variables mein vercel link missing ho, toh yeh line khud add kar degi
-if (!allowedOrigins.includes('https://brimi.vercel.app')) {
-  allowedOrigins.push('https://brimi.vercel.app');
-}
-
 console.log('✅ CORS allowed origins:');
 allowedOrigins.forEach(o => console.log(`   • ${o}`));
 
@@ -94,15 +89,22 @@ app.use(passport.initialize());
 // ── API routes ─────────────────────────────────────────────────────────
 app.use('/api/auth',      require('./src/routes/auth'));
 
-// One-time admin seed — POST /api/seed-admin  { "secret": "SEED_SECRET_VALUE" }
-app.post('/api/seed-admin', async (req, res) => {
+// Admin re-seed — requires an existing admin to already be logged in AND the
+// SEED_SECRET to match exactly (no fallback — if SEED_SECRET isn't set, this
+// endpoint is disabled entirely). Useful only for emergency recovery.
+app.post('/api/seed-admin', require('./src/middleware/auth').authenticate, require('./src/middleware/auth').adminOnly, async (req, res) => {
+  const { pool } = require('./src/config/db');
   const { secret } = req.body || {};
-  if (!secret || secret !== (process.env.SEED_SECRET || 'brimi-seed-2025')) {
+  if (!process.env.SEED_SECRET || secret !== process.env.SEED_SECRET) {
     return res.status(403).json({ error: 'Forbidden' });
+  }
+  const { name, email, password } = req.body || {};
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'name, email, password required in body' });
   }
   try {
     const bcrypt = require('bcryptjs');
-    const hash = await bcrypt.hash('Pakistan@1947', 12);
+    const hash = await bcrypt.hash(password, 12);
     const r = await pool.query(
       `INSERT INTO users (name,email,password_hash,role,is_active,email_verified,department,permissions)
        VALUES ($1,$2,$3,'admin',true,true,'admin','["*"]')
@@ -111,7 +113,7 @@ app.post('/api/seed-admin', async (req, res) => {
              role='admin',is_active=true,email_verified=true,
              department='admin',permissions='["*"]'
        RETURNING id,name,email,role`,
-      ['Ghulam Fareed','abdullahshahid9999@gmail.com',hash]
+      [name, email, hash]
     );
     res.json({ success:true, user: r.rows[0] });
   } catch(e) { res.status(500).json({ error: e.message }); }
@@ -149,37 +151,12 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// DEBUG — check exact DB state (remove after fixing)
-app.get('/api/debug', async (_req, res) => {
-  const { pool } = require('./src/config/db');
-  try {
-    const users = await pool.query(
-      `SELECT u.id, u.email, u.role, u.department, u.shop_id AS u_shop,
-              e.id AS emp_id, e.department AS e_dept, e.shop_id AS e_shop,
-              s.shop_name
-       FROM users u
-       LEFT JOIN employees e ON e.user_id = u.id
-       LEFT JOIN shops s ON s.id = COALESCE(e.shop_id, u.shop_id)
-       WHERE u.role = 'staff'`
-    );
-    const cols = await pool.query(
-      `SELECT column_name FROM information_schema.columns
-       WHERE table_name = 'users' AND column_name IN ('department','permissions','shop_id')`
-    );
-    const ecols = await pool.query(
-      `SELECT column_name FROM information_schema.columns
-       WHERE table_name = 'employees' AND column_name = 'shop_id'`
-    );
-    res.json({
-      user_columns_exist: cols.rows.map(r => r.column_name),
-      employee_shop_col:  ecols.rows.length > 0,
-      staff_users:        users.rows
-    });
-  } catch(e) { res.json({ error: e.message }); }
-});
+// (Removed /api/debug — it leaked staff user data with no authentication.
+//  If similar diagnostics are needed again, add admin-auth and remove after use.)
 
-// One-time public setup endpoint — safe to call multiple times (IF NOT EXISTS) [v2]
-app.get('/api/setup', async (_req, res) => {
+// Manual migration trigger — admin-only. (Note: runAutoMigration() below already
+// runs these same idempotent ALTERs automatically on every server start.)
+app.get('/api/setup', require('./src/middleware/auth').authenticate, require('./src/middleware/auth').adminOnly, async (_req, res) => {
   const { pool } = require('./src/config/db');
   const steps = [
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS department  VARCHAR(50)  DEFAULT 'sales'`,

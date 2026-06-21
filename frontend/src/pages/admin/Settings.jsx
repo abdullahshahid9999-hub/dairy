@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings as SettingsIcon, Upload, Link, Save, RotateCcw, Building2 } from 'lucide-react';
+import { Settings as SettingsIcon, Upload, Link, Save, RotateCcw, Building2, MessageCircle } from 'lucide-react';
 import api from '../../api/client';
 import toast from 'react-hot-toast';
 
@@ -11,6 +11,8 @@ export default function Settings() {
   const [logoName, setLogoName] = useState('Brimi Dairy');
   const [logoUrl, setLogoUrl]   = useState('');
   const [mode, setMode]         = useState('upload');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [waSaving, setWaSaving] = useState(false);
   const fileRef                 = useRef(null);
 
   useEffect(() => {
@@ -19,6 +21,10 @@ export default function Settings() {
       setPreview(data.settings?.logo_url || null);
       setLogoName(data.settings?.logo_name || 'Brimi Dairy');
     }).finally(() => setLoading(false));
+    // admin_whatsapp is a private key — fetched separately via its own admin-only route
+    api.get('/settings/admin_whatsapp').then(({ data }) => {
+      setWhatsapp(data.value || '');
+    }).catch(() => {});
   }, []);
 
   const handleFile = (e) => {
@@ -63,6 +69,14 @@ export default function Settings() {
       await api.put(`/settings/${key}`, { value });
       toast.success('Saved');
     } catch { toast.error('Failed to save'); }
+  };
+
+  const saveWhatsapp = async () => {
+    setWaSaving(true);
+    try {
+      await api.put('/settings/admin_whatsapp', { value: whatsapp });
+      toast.success('WhatsApp number saved');
+    } catch { toast.error('Failed to save'); } finally { setWaSaving(false); }
   };
 
   if (loading) return <div className="p-8 text-slate-500">Loading...</div>;
@@ -147,6 +161,25 @@ export default function Settings() {
           </div>
         ))}
         <p className="text-xs text-slate-400">Saves automatically when you leave the field.</p>
+      </div>
+
+      {/* WhatsApp Notifications */}
+      <div className="card space-y-4">
+        <h2 className="font-semibold text-slate-700 flex items-center gap-2">
+          <MessageCircle size={18} className="text-[#1d6faa]" /> WhatsApp Notifications
+        </h2>
+        <p className="text-xs text-slate-400 -mt-2">
+          This number receives a WhatsApp alert for every milk purchase (collection) entry. The supplier (farmer) is also notified automatically using their own phone number on file.
+        </p>
+        <div className="flex items-center gap-4">
+          <label className="w-40 text-sm font-medium text-slate-600 shrink-0">Admin WhatsApp #</label>
+          <input type="tel" placeholder="03001234567" value={whatsapp}
+            onChange={e => setWhatsapp(e.target.value)}
+            className="input flex-1" />
+        </div>
+        <button onClick={saveWhatsapp} disabled={waSaving} className="btn-primary">
+          <Save size={15} />{waSaving ? 'Saving...' : 'Save Number'}
+        </button>
       </div>
 
       {/* Pricing Configuration */}

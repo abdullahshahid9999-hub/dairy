@@ -82,6 +82,14 @@ export default function LoginPage({ portal = 'admin' }) {
     }).catch(() => {});
   }, []);
 
+  // Where a logged-in user actually belongs, regardless of which portal they typed in on
+  const homeFor = (user) => {
+    if (user.role === 'admin') return '/admin/dashboard';
+    if (user.department === 'sales') return '/sales';
+    if (user.department === 'purchase') return '/staff';
+    return '/login';
+  };
+
   const onSubmit = async (data) => {
     setLoading(true);
     try {
@@ -89,25 +97,33 @@ export default function LoginPage({ portal = 'admin' }) {
       if (res.data.success) {
         const user = res.data.data.user;
 
-        // Block wrong portal access
-        if (portal === 'admin' && user.role !== 'admin') {
-          toast.error('Access denied. Use the correct portal.');
-          setLoading(false);
-          return;
-        }
-        if (portal === 'sales' && (user.role === 'admin' || user.department !== 'sales')) {
-          toast.error('Access denied. Use the correct portal.');
-          setLoading(false);
-          return;
-        }
-        if (portal === 'purchase' && (user.role === 'admin' || user.department !== 'purchase')) {
-          toast.error('Access denied. Use the correct portal.');
-          setLoading(false);
-          return;
+        // The dedicated portal pages (/admin/login, /sales/login, /purchase/login) still
+        // enforce that you're using the right one — this avoids a sales user accidentally
+        // landing on the admin-branded screen and vice versa. The generic /login page
+        // (portal=admin, used as the catch-all / and 404 redirect target) does NOT block —
+        // it just sends every valid user to wherever they actually belong.
+        const isGenericLogin = portal === 'admin' && window.location.pathname === '/login';
+
+        if (!isGenericLogin) {
+          if (portal === 'sales' && (user.role === 'admin' || user.department !== 'sales')) {
+            toast.error('Access denied. Use the correct portal.');
+            setLoading(false);
+            return;
+          }
+          if (portal === 'purchase' && (user.role === 'admin' || user.department !== 'purchase')) {
+            toast.error('Access denied. Use the correct portal.');
+            setLoading(false);
+            return;
+          }
+          if (portal === 'admin' && user.role !== 'admin' && !isGenericLogin) {
+            toast.error('Access denied. Use the correct portal.');
+            setLoading(false);
+            return;
+          }
         }
 
         login(user, res.data.data.accessToken, res.data.data.refreshToken);
-        navigate(cfg.redirectFn());
+        navigate(isGenericLogin ? homeFor(user) : cfg.redirectFn());
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed');

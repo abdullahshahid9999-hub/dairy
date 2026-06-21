@@ -3,12 +3,17 @@ const router  = express.Router();
 const db      = require('../config/db');
 const { authenticate, adminOnly } = require('../middleware/auth');
 
-// GET all settings (public)
+// Keys that must never be exposed on the public settings endpoint
+const PRIVATE_KEYS = ['admin_whatsapp'];
+
+// GET all settings (public) — excludes private/sensitive keys
 router.get('/', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT key, value FROM settings ORDER BY key');
     const settings = {};
-    rows.forEach(r => { settings[r.key] = r.value; });
+    rows.forEach(r => {
+      if (!PRIVATE_KEYS.includes(r.key)) settings[r.key] = r.value;
+    });
     res.json({ success: true, settings });
   } catch (err) { res.status(500).json({ success: false, message: 'Failed' }); }
 });
@@ -46,9 +51,16 @@ router.delete('/logo', authenticate, adminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: 'Failed' }); }
 });
 
-// GET single setting
+// GET single setting (public — except private keys, which require admin auth)
 router.get('/:key', async (req, res) => {
   try {
+    if (PRIVATE_KEYS.includes(req.params.key)) {
+      return authenticate(req, res, () => adminOnly(req, res, async () => {
+        const row = await db.queryOne('SELECT key,value FROM settings WHERE key=$1', [req.params.key]);
+        if (!row) return res.status(404).json({ success: false, message: 'Not found' });
+        res.json({ success: true, key: row.key, value: row.value });
+      }));
+    }
     const row = await db.queryOne('SELECT key,value FROM settings WHERE key=$1', [req.params.key]);
     if (!row) return res.status(404).json({ success: false, message: 'Not found' });
     res.json({ success: true, key: row.key, value: row.value });

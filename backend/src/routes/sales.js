@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const db       = require('../config/db');
 const { validate }              = require('../middleware/validate');
 const { authenticate, adminOnly } = require('../middleware/auth');
+const whatsappService = require('../services/whatsappService');
 
 router.use(authenticate);
 
@@ -140,9 +141,12 @@ router.post('/sales',
         payment_status, received_amount, notes,
       } = req.body;
 
-      // Get company_id from contract
+      // Get company_id (+ name/phone for the WhatsApp notification) from contract
       const [_cRows] = await db.query(
-        'SELECT company_id FROM sales_contracts WHERE id = ? AND status = "active"',
+        `SELECT sc.company_id, c.name AS company_name, c.phone AS company_phone
+         FROM sales_contracts sc
+         JOIN companies c ON c.id = sc.company_id
+         WHERE sc.id = ? AND sc.status = "active"`,
         [contract_id]
       );
       const contract = _cRows[0];
@@ -157,6 +161,18 @@ router.post('/sales',
          fat_percentage || null, snf_percentage || null, rate_per_liter, total_amount,
          payment_status || 'pending', received_amount || 0, notes || null, req.user.id]
       );
+
+      // Fire-and-forget WhatsApp notification — admin + company.
+      // Wrapped so a WhatsApp failure can NEVER break or delay the sale save.
+      whatsappService.notifySale({
+        companyName: contract.company_name,
+        companyPhone: contract.company_phone,
+        liters: quantity_liters,
+        rate: rate_per_liter,
+        amount: total_amount,
+        date: sale_date,
+        recordId: result?.id,
+      }).catch(err => console.error('[whatsapp] notifySale failed:', err.message));
 
       res.status(201).json({ success: true, message: 'Sale recorded.', data: { id: result?.id, total_amount } });
     } catch (err) { next(err); }
