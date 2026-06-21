@@ -12,10 +12,35 @@
  *   Total Payout    = Purchase_Rate × Weight_kg
  */
 
+const db = require('../config/db');
+
 const DEFAULT = {
   target_ts:   13,
   base_rate:   1,
 };
+
+/**
+ * Reads pricing config (target_ts, base_rate, and the TS formula constants)
+ * from the settings table. Falls back to DEFAULT for any key not set.
+ *
+ * IMPORTANT: this was previously called but never defined anywhere, which
+ * meant every purchase calculation silently fell back to DEFAULT.base_rate
+ * (=1) instead of the admin's actual configured rate. Fixed.
+ */
+async function getPricingConfig() {
+  const keys = ['target_ts', 'base_rate', 'constant_c1', 'constant_c2', 'constant_c3', 'constant_scale'];
+  const cfg = {};
+  try {
+    const [rows] = await db.query(
+      `SELECT key, value FROM settings WHERE key = ANY(?)`,
+      [keys]
+    );
+    rows.forEach(r => { cfg[r.key] = r.value; });
+  } catch (err) {
+    console.error('[pricingEngine] getPricingConfig failed, using defaults:', err.message);
+  }
+  return cfg;
+}
 
 function getNum(cfg, key) {
   const v = parseFloat(cfg?.[key]);
@@ -92,4 +117,4 @@ function computeAmount(quantity_liters, computed_rate) {
   return parseFloat((parseFloat(quantity_liters) * computed_rate).toFixed(4));
 }
 
-module.exports = { computeTS, computeRate, computeAmount, validateConfig, DEFAULT };
+module.exports = { computeTS, computeRate, computeAmount, validateConfig, getPricingConfig, DEFAULT };

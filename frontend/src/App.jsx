@@ -26,6 +26,7 @@ import Reports    from './pages/admin/Reports';
 import AuditLogs  from './pages/admin/AuditLogs';
 import Settings   from './pages/admin/Settings';
 import Customers  from './pages/admin/Customers';
+import BulkSalesPortal from './pages/admin/BulkSalesPortal';
 import Products   from './pages/admin/Products';
 import Invoices   from './pages/admin/Invoices';
 import WalkIn     from './pages/admin/WalkIn';
@@ -107,6 +108,7 @@ export default function App() {
           <Route path="audit"      element={<AuditLogs />} />
           <Route path="settings"   element={<Settings />} />
           <Route path="customers"  element={<Customers />} />
+          <Route path="bulk-sales" element={<BulkSalesPortal />} />
           <Route path="products"   element={<Products />} />
           <Route path="invoices"   element={<Invoices />} />
           <Route path="walkin"     element={<WalkIn />} />

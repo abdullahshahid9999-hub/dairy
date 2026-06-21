@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const db = require('../config/db');
 const { validate } = require('../middleware/validate');
 const { authenticate, adminOnly } = require('../middleware/auth');
+const { computeTS, getPricingConfig } = require('../utils/pricingEngine');
 
 router.use(authenticate);
 
@@ -61,9 +62,15 @@ router.get('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ── BULK: record delivery to ledger ─────────────────────────
+// ── BULK: record delivery to ledger (FAT/LR-based TS pricing) ──
 router.post('/:id/bulk-entry',
-  [body('qty_liters').isFloat({min:0.1}), body('rate').isFloat({min:0}), body('entry_date').isDate()],
+  [
+    body('qty_liters').isFloat({ min: 0.1 }),
+    body('entry_date').isDate(),
+    body('fat_percentage').optional().isFloat({ min: 0 }),
+    body('lr').optional().isFloat({ min: 0 }),
+    body('rate').optional().isFloat({ min: 0 }),
+  ],
   validate,
   async (req, res, next) => {
     try {
@@ -72,18 +79,66 @@ router.post('/:id/bulk-entry',
       if (req.user.role !== 'admin' && !userPerms.includes('*') && !userPerms.includes('bulk_access')) {
         return res.status(403).json({ success:false, message:'Bulk deal access not granted. Contact admin.' });
       }
-      const { qty_liters, rate, entry_date, notes } = req.body;
-      const amount = parseFloat(qty_liters) * parseFloat(rate);
+      const { qty_liters, entry_date, notes, fat_percentage, lr } = req.body;
+
+      const customer = await db.queryOne('SELECT rate_per_liter, customer_type FROM customers WHERE id=$1', [req.params.id]);
+      if (!customer) return res.status(404).json({ success:false, message:'Customer not found' });
+      if (customer.customer_type !== 'bulk') return res.status(400).json({ success:false, message:'Not a bulk customer' });
+
+      let insertCols, insertVals, amount;
+
+      if (fat_percentage != null && lr != null) {
+        // FAT/LR-based standardised pricing — same formula as farmer purchase,
+        // using this customer's own rate_per_liter as the base_rate.
+        const globalCfg = await getPricingConfig().catch(() => ({}));
+        const cfg = { ...globalCfg, base_rate: customer.rate_per_liter };
+        const result = computeTS({ cfg, fat: fat_percentage, lr, weight: qty_liters });
+        amount = result.total_payout;
+
+        await db.query(
+          `INSERT INTO bulk_ledger
+             (customer_id, entry_date, qty_liters, rate, amount, notes, recorded_by,
+              fat_percentage, lr, ts, snf_computed, sp_gravity, milk_kg, standardised_ts)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+          [req.params.id, entry_date, qty_liters, result.rate_per_unit, amount.toFixed(2), notes || null, req.user.id,
+           fat_percentage, lr, result.ts, result.snf_computed, result.sp_gravity, result.milk_kg, result.standardised_ts]
+        );
+
+        await db.query('UPDATE customers SET outstanding=outstanding+$1 WHERE id=$2', [amount, req.params.id]);
+        return res.status(201).json({ success:true, data:{ amount, ...result } });
+      }
+
+      // Legacy fallback: flat qty x manual rate (no FAT/LR given)
+      const { rate } = req.body;
+      if (rate == null) return res.status(400).json({ success:false, message:'Provide fat_percentage+lr, or a flat rate.' });
+      amount = parseFloat(qty_liters) * parseFloat(rate);
       await db.query(
         'INSERT INTO bulk_ledger (customer_id,entry_date,qty_liters,rate,amount,notes,recorded_by) VALUES ($1,$2,$3,$4,$5,$6,$7)',
         [req.params.id, entry_date, qty_liters, rate, amount.toFixed(2), notes||null, req.user.id]
       );
-      // update outstanding
       await db.query('UPDATE customers SET outstanding=outstanding+$1 WHERE id=$2', [amount, req.params.id]);
       res.status(201).json({ success:true, data:{ amount } });
     } catch (err) { next(err); }
   }
 );
+
+// ── BULK: live rate preview (no save) ───────────────────────
+router.post('/bulk/preview-rate', async (req, res, next) => {
+  try {
+    const { fat_percentage, lr, qty_liters, customer_id } = req.body;
+    if (fat_percentage == null || lr == null || !qty_liters || !customer_id)
+      return res.status(400).json({ success:false, message:'fat_percentage, lr, qty_liters, customer_id required.' });
+
+    const customer = await db.queryOne('SELECT rate_per_liter FROM customers WHERE id=$1', [customer_id]);
+    if (!customer) return res.status(404).json({ success:false, message:'Customer not found' });
+
+    const globalCfg = await getPricingConfig().catch(() => ({}));
+    const cfg = { ...globalCfg, base_rate: customer.rate_per_liter };
+    const result = computeTS({ cfg, fat: fat_percentage, lr, weight: qty_liters });
+
+    res.json({ success:true, data: result });
+  } catch (err) { next(err); }
+});
 
 // ── BULK: generate bill ──────────────────────────────────────
 router.post('/:id/bulk-bill', adminOnly, async (req, res, next) => {

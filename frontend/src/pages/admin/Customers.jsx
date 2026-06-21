@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Search, Building2, Home, Banknote, ShoppingBag, ChevronRight, X, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
@@ -24,7 +23,6 @@ export default function Customers() {
   const [modal, setModal]         = useState(null);
   const [detail, setDetail]       = useState(null);
   const [selC, setSelC]           = useState(null);
-  const navigate = useNavigate();
   const [saving, setSaving]       = useState(false);
   const [form, setForm]           = useState(defaultForm);
   // Sale forms
@@ -194,7 +192,7 @@ export default function Customers() {
                 <td className="font-mono text-sm">{parseFloat(c.rate_per_liter)>0?`${fmt(c.rate_per_liter)}/L`:'—'}</td>
                 <td>{parseFloat(c.outstanding)>0?<span className="text-red-600 font-semibold font-mono">{fmt(c.outstanding)}</span>:<span className="text-emerald-500 text-xs">Clear</span>}</td>
                 <td>
-                <button onClick={(e)=>{ e.stopPropagation(); navigate('/admin/sales', { state:{ customer:c } }); }}
+                <button onClick={(e)=>{ e.stopPropagation(); openDetail(c); }}
                   className="text-xs font-medium text-[#1d6faa] hover:underline">Sale →</button>
               </td>
               </tr>;
