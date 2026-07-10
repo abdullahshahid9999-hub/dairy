@@ -24,10 +24,7 @@ expRouter.get('/rent-refs', authenticate, async (_req, res, next) => {
     const [shops] = await db.query(
       `SELECT id, shop_name AS name, monthly_rent AS amount, 'shop' AS type FROM shops WHERE is_active = TRUE`
     );
-    const [vehicles] = await db.query(
-      `SELECT id, reg_number AS name, monthly_rent AS amount, 'vehicle' AS type FROM vehicles WHERE is_active = TRUE AND ownership_type = 'rented'`
-    );
-    res.json({ success: true, data: [...shops, ...vehicles] });
+    res.json({ success: true, data: [...shops] });
   } catch (err) { next(err); }
 });
 

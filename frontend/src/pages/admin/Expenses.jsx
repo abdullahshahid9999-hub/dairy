@@ -16,7 +16,6 @@ export default function Expenses() {
   const [expenses, setExpenses]     = useState([]);
   const [categories, setCategories] = useState([]);
   const [rentRefs, setRentRefs]     = useState([]);
-  const [vehicles, setVehicles]     = useState([]);
   const [loading, setLoading]       = useState(true);
   const [modal, setModal]           = useState(false);
   const [saving, setSaving]         = useState(false);
@@ -46,12 +45,10 @@ export default function Expenses() {
       api.get(`/expenses?${q}&limit=200`),
       api.get('/expenses/categories'),
       api.get('/expenses/rent-refs'),
-      api.get('/vehicles'),
-    ]).then(([e,c,r,v])=>{
+    ]).then(([e,c,r])=>{
       setExpenses(e.data.data||[]);
       setCategories(c.data.data||[]);
       setRentRefs(r.data.data||[]);
-      setVehicles(v.data.data||[]);
     }).finally(()=>setLoading(false));
   };
   useEffect(()=>{ load(); },[]);
@@ -68,14 +65,6 @@ export default function Expenses() {
       reference_type: isShopRent?'shop':'vehicle',
       amount: ref?.amount || p.amount,
       description: ref ? `${isShopRent?'Shop':'Vehicle'} rent: ${ref.name}` : p.description,
-    }));
-  };
-
-  const handleVehicleChange = (vId) => {
-    const v = vehicles.find(v=>String(v.id)===vId);
-    setForm(p=>({
-      ...p, reference_id:vId, reference_type:'vehicle',
-      description: v ? `Diesel: ${v.reg_number}` : p.description,
     }));
   };
 
@@ -171,13 +160,6 @@ export default function Expenses() {
               {categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
             </select></div>
 
-          {isDiesel && (
-            <div><label className="label">Vehicle (optional)</label>
-              <select value={form.reference_id} onChange={e=>handleVehicleChange(e.target.value)} className="input">
-                <option value="">Select vehicle…</option>
-                {vehicles.map(v=><option key={v.id} value={v.id}>{v.reg_number}{v.make_model?` — ${v.make_model}`:''}</option>)}
-              </select></div>
-          )}
           {isShopRent && (
             <div><label className="label">Shop *</label>
               <select value={form.reference_id} onChange={e=>handleRefChange(e.target.value)} className="input">

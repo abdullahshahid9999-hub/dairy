@@ -220,7 +220,7 @@ router.post('/sale',
   validate,
   async (req, res, next) => {
     try {
-      const { customer_id, customer_type, sale_date, milk_qty=0, milk_rate=0, items=[], notes, shop_id: bodyShopId } = req.body;
+      const { customer_id, customer_type, sale_date, milk_qty=0, milk_rate=0, notes, shop_id: bodyShopId } = req.body;
       if (customer_type==='cash' && !customer_id) return res.status(400).json({ success:false, message:'Customer required for cash sale' });
 
       // Staff always use their assigned shop
@@ -267,35 +267,19 @@ router.post('/sale',
       }
 
       const milkAmount    = milkQtyNum * parseFloat(milk_rate);
-      const productsAmount = items.reduce((s,i)=>s+parseFloat(i.qty)*parseFloat(i.price),0);
-      const total         = milkAmount + productsAmount;
+      const total         = milkAmount;
 
       const seq = await db.queryOne('SELECT COALESCE(MAX(id),0) AS m FROM receipts');
       const no  = `REC-${String(Number(seq.m)+1).padStart(6,'0')}`;
 
       const r = await db.queryOne(
         `INSERT INTO receipts (receipt_no,customer_id,customer_type,receipt_date,milk_qty,milk_amount,
-          products_amount,total_amount,paid_amount,status,notes,shop_id,created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'paid',$10,$11,$12) RETURNING id`,
+          total_amount,paid_amount,status,notes,shop_id,created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'paid',$9,$10,$11) RETURNING id`,
         [no,customer_id||null,customer_type,sale_date||new Date().toISOString().slice(0,10),
-         milkQtyNum,milkAmount.toFixed(2),productsAmount.toFixed(2),total.toFixed(2),total.toFixed(2),notes||null,shop_id||null,req.user.id]
+         milkQtyNum,milkAmount.toFixed(2),total.toFixed(2),total.toFixed(2),notes||null,shop_id||null,req.user.id]
       );
       const receiptId = r?.id;
-
-      // Insert line items + reduce stock
-      for (const item of items) {
-        if (receiptId) {
-          try {
-            await db.query(
-              'INSERT INTO receipt_items (receipt_id,product_id,product_name,qty,price,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-              [receiptId,item.product_id,item.product_name,item.qty,item.price,(item.qty*item.price).toFixed(2)]
-            );
-          } catch(e) { console.error('receipt_items insert skipped:', e.message); }
-        }
-        try {
-          await db.query('UPDATE products SET stock_qty=GREATEST(0,stock_qty-$1) WHERE id=$2', [item.qty,item.product_id]);
-        } catch(e) {}
-      }
 
       // Auto-create invoice for cash-in
       // Invoice creation — optional, sale completes even if invoices table missing
@@ -313,15 +297,9 @@ router.post('/sale',
            notes||null, req.user.id]
         );
         invoiceId = invR?.id;
-        if (invoiceId) {
-          if (parseFloat(milk_qty)>0) {
-            await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-              [invoiceId, 'Milk', milk_qty, 'L', milk_rate, milkAmount.toFixed(2)]);
-          }
-          for (const item of items) {
-            await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-              [invoiceId, item.product_name, item.qty, item.unit||'pcs', item.price, (item.qty*item.price).toFixed(2)]);
-          }
+        if (invoiceId && parseFloat(milk_qty)>0) {
+          await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
+            [invoiceId, 'Milk', milk_qty, 'L', milk_rate, milkAmount.toFixed(2)]);
         }
       } catch(invErr) {
         console.error('Invoice creation skipped (table may not exist yet):', invErr.message);
@@ -348,7 +326,7 @@ router.get('/receipts', async (req, res, next) => {
     }
     params.push(parseInt(limit));
     const [rows] = await db.query(
-      `SELECT id,receipt_no,customer_type,receipt_date,milk_qty,milk_amount,products_amount,total_amount,paid_amount,status,shop_id
+      `SELECT id,receipt_no,customer_type,receipt_date,milk_qty,milk_amount,total_amount,paid_amount,status,shop_id
        FROM receipts WHERE ${conds.join(' AND ')} ORDER BY receipt_date DESC, id DESC LIMIT $${pi}`,
       params
     );

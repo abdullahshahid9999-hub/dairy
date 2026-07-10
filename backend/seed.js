@@ -109,14 +109,6 @@ async function seed() {
   `, [companyId]);
   console.log('✅ Sample company & contract created');
 
-  // ── Vehicle ───────────────────────────────────────────────
-  await db.query(`
-    INSERT INTO vehicles (reg_number, make_model, ownership_type, created_by)
-    VALUES ('PB-12-345', 'Toyota Pickup 2019', 'owned', 1)
-    ON DUPLICATE KEY UPDATE make_model = VALUES(make_model)
-  `);
-  console.log('✅ Sample vehicle created');
-
   // ── Shop ──────────────────────────────────────────────────
   await db.query(`
     INSERT INTO shops (shop_name, location, ownership_type, owner_name, monthly_rent, created_by)

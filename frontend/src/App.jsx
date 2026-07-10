@@ -18,16 +18,13 @@ import Farmers    from './pages/admin/Farmers';
 import MilkAdmin  from './pages/admin/MilkAdmin';
 import Billing    from './pages/admin/Billing';
 import Sales      from './pages/admin/Sales';
-import Vehicles   from './pages/admin/Vehicles';
 import Shops      from './pages/admin/Shops';
 import HRPayroll  from './pages/admin/HRPayroll';
 import Expenses   from './pages/admin/Expenses';
 import Reports    from './pages/admin/Reports';
-import AuditLogs  from './pages/admin/AuditLogs';
 import Settings   from './pages/admin/Settings';
 import Customers  from './pages/admin/Customers';
 import BulkSalesPortal from './pages/admin/BulkSalesPortal';
-import Products   from './pages/admin/Products';
 import Invoices   from './pages/admin/Invoices';
 import WalkIn     from './pages/admin/WalkIn';
 
@@ -100,16 +97,13 @@ export default function App() {
           <Route path="milk"       element={<MilkAdmin />} />
           <Route path="billing"    element={<Billing />} />
           <Route path="sales"      element={<Sales />} />
-          <Route path="vehicles"   element={<Vehicles />} />
           <Route path="shops"      element={<Shops />} />
           <Route path="hr"         element={<HRPayroll />} />
           <Route path="expenses"   element={<Expenses />} />
           <Route path="reports"    element={<Reports />} />
-          <Route path="audit"      element={<AuditLogs />} />
           <Route path="settings"   element={<Settings />} />
           <Route path="customers"  element={<Customers />} />
           <Route path="bulk-sales" element={<BulkSalesPortal />} />
-          <Route path="products"   element={<Products />} />
           <Route path="invoices"   element={<Invoices />} />
           <Route path="walkin"     element={<WalkIn />} />
         </Route>

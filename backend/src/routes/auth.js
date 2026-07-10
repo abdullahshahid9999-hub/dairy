@@ -20,7 +20,7 @@ function makeRefreshToken(user, rememberMe = false) {
   return jwt.sign({ id: user.id, type: 'refresh' }, REFRESH_SECRET, { expiresIn: rememberMe ? REFRESH_LONG : REFRESH_EXPIRES });
 }
 const DEPT_PERMS_LOGIN = {
-  sales:    ['sales','customers','products','dashboard'],
+  sales:    ['sales','customers','dashboard'],
   purchase: ['milk','customers_view','dashboard'],
 };
 const safeUser = (u) => {
@@ -187,7 +187,7 @@ router.get('/me', async (req, res) => {
 
     // Build perms same way as auth middleware
     const DEPT_PERMS = {
-      sales:    ['sales','customers','products','dashboard'],
+      sales:    ['sales','customers','dashboard'],
       purchase: ['milk','customers_view','dashboard'],
     };
     if (user.role === 'admin') {

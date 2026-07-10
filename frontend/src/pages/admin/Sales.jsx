@@ -52,7 +52,6 @@ function PrintSlip({ receipt, onClose }) {
 export default function Sales() {
   const [saleType, setSaleType] = useState('bulk');
   const [customers, setCustomers] = useState([]);
-  const [products, setProducts]   = useState([]);
   const [receipts, setReceipts]   = useState([]);
   const [loading, setLoading]     = useState(false);
   const [saving, setSaving]       = useState(false);
@@ -65,9 +64,8 @@ export default function Sales() {
   const [bulkForm, setBulkForm]   = useState({ qty_liters:'', rate:'', entry_date:today(), notes:'' });
   const [bulkBill, setBulkBill]   = useState({ date_from:'', date_to:'' });
   const [hhBill, setHhBill]       = useState({ year:new Date().getFullYear(), month:new Date().getMonth()+1 });
-  const [cashForm, setCashForm]   = useState({ milk_qty:'', milk_rate:'', items:[], sale_date:today() });
-  const [walkinForm, setWalkinForm] = useState({ milk_qty:'', milk_rate:'', items:[], sale_date:today() });
-  const [saleTab, setSaleTab]     = useState('milk');
+  const [cashForm, setCashForm]   = useState({ milk_qty:'', milk_rate:'', sale_date:today() });
+  const [walkinForm, setWalkinForm] = useState({ milk_qty:'', milk_rate:'', sale_date:today() });
 
   const location = useLocation();
 
@@ -84,13 +82,11 @@ export default function Sales() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [c, p, r] = await Promise.all([
+      const [c, r] = await Promise.all([
         api.get(`/customers?type=${saleType}&search=${encodeURIComponent(search)}`),
-        api.get('/products'),
         api.get('/receipts'),
       ]);
       setCustomers(c.data.data||[]);
-      setProducts(p.data.data||[]);
       setReceipts(r.data.data||[]);
     } catch { toast.error('Load failed'); }
     finally { setLoading(false); }
@@ -98,19 +94,7 @@ export default function Sales() {
 
   useEffect(()=>{ loadData(); }, [saleType, search]);
 
-  const addItem = (setter, product) => {
-    setter(prev => {
-      const ex = prev.items.find(i=>i.product_id===product.id);
-      if (ex) return { ...prev, items: prev.items.map(i=>i.product_id===product.id?{...i,qty:i.qty+1}:i) };
-      return { ...prev, items:[...prev.items,{ product_id:product.id, product_name:product.name, qty:1, price:parseFloat(product.price) }] };
-    });
-  };
-
-  const adjItem = (setter, pid, delta) => {
-    setter(prev => ({ ...prev, items: prev.items.map(i=>i.product_id===pid?{...i,qty:i.qty+delta}:i).filter(i=>i.qty>0) }));
-  };
-
-  const calcTotal = (f) => parseFloat(f.milk_qty||0)*parseFloat(f.milk_rate||0) + (f.items||[]).reduce((s,i)=>s+i.qty*i.price,0);
+  const calcTotal = (f) => parseFloat(f.milk_qty||0)*parseFloat(f.milk_rate||0);
 
   const onBulkEntry = async (e) => {
     e.preventDefault();
@@ -160,7 +144,7 @@ export default function Sales() {
       toast.success(`Receipt: ${r.data.data.receipt_no}`);
       setSlip({ receipt_no:r.data.data.receipt_no, date:today(), customer:selCustomer.name, ...cashForm, total:r.data.data.total });
       setModal('slip');
-      setCashForm({ milk_qty:'', milk_rate:'', items:[], sale_date:today() });
+      setCashForm({ milk_qty:'', milk_rate:'', sale_date:today() });
       loadData();
     } catch (err) { toast.error(err.response?.data?.message||'Failed'); }
     finally { setSaving(false); }
@@ -174,7 +158,7 @@ export default function Sales() {
       toast.success(`Receipt: ${r.data.data.receipt_no}`);
       setSlip({ receipt_no:r.data.data.receipt_no, date:today(), customer:'Walk-in Customer', ...walkinForm, total:r.data.data.total });
       setModal('slip');
-      setWalkinForm({ milk_qty:'', milk_rate:'', items:[], sale_date:today() });
+      setWalkinForm({ milk_qty:'', milk_rate:'', sale_date:today() });
       loadData();
     } catch (err) { toast.error(err.response?.data?.message||'Failed'); }
     finally { setSaving(false); }
@@ -184,40 +168,6 @@ export default function Sales() {
     try { await api.patch(`/customers/${cid}/receipts/${rid}/pay`); toast.success('Marked paid'); loadData(); }
     catch { toast.error('Failed'); }
   };
-
-  const ProductPicker = ({ setter }) => (
-    <div className="grid grid-cols-2 gap-2">
-      {products.map(p=>(
-        <button key={p.id} type="button" onClick={()=>addItem(setter,p)}
-          className="flex flex-col items-start gap-1 border-2 border-slate-200 rounded-xl p-3 hover:border-[#1d6faa] hover:bg-blue-50 transition group">
-          <span className="font-semibold text-slate-700 text-sm group-hover:text-[#1d6faa]">{p.name}</span>
-          <div className="flex items-center justify-between w-full">
-            <span className="font-mono font-bold text-[#1d6faa] text-sm">{fmt(p.price)}</span>
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${parseFloat(p.stock_qty)<5?'bg-red-100 text-red-600':'bg-emerald-100 text-emerald-600'}`}>
-              {p.stock_qty} {p.unit_type}
-            </span>
-          </div>
-        </button>
-      ))}
-      {products.length===0 && <p className="col-span-2 text-center text-slate-400 text-sm py-4">No products. Add from Products page.</p>}
-    </div>
-  );
-
-  const ItemList = ({ form, setter }) => form.items.length>0 && (
-    <div className="space-y-1 bg-slate-50 rounded-xl p-3">
-      {form.items.map(i=>(
-        <div key={i.product_id} className="flex items-center justify-between text-xs">
-          <span>{i.product_name}</span>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={()=>adjItem(setter,i.product_id,-1)} className="w-5 h-5 bg-white border border-slate-200 rounded text-center font-bold">-</button>
-            <span className="w-6 text-center font-semibold">{i.qty}</span>
-            <button type="button" onClick={()=>adjItem(setter,i.product_id,1)} className="w-5 h-5 bg-white border border-slate-200 rounded text-center font-bold">+</button>
-            <span className="font-mono w-16 text-right font-semibold">{fmt(i.qty*i.price)}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 
   return (
     <div className="space-y-5">
@@ -313,21 +263,11 @@ export default function Sales() {
           {saleType==='cash' && (
             <div className="card space-y-4">
               <p className="font-semibold text-slate-700 text-sm">Cash Sale {selCustomer && <span className="text-[#1d6faa]">→ {selCustomer.name}</span>}</p>
-              <div className="flex gap-2">
-                {['milk','products'].map(t=>(
-                  <button key={t} type="button" onClick={()=>setSaleTab(t)}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-medium capitalize transition ${saleTab===t?'bg-[#1d6faa] text-white':'bg-slate-100 text-slate-500'}`}>{t}</button>
-                ))}
-              </div>
               <form onSubmit={onCashSale} className="space-y-3">
-                {saleTab==='milk' && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="label">Qty (L)</label><input type="number" step="0.1" value={cashForm.milk_qty} onChange={e=>setCashForm(p=>({...p,milk_qty:e.target.value}))} className="input font-mono"/></div>
-                    <div><label className="label">Rate/L</label><input type="number" step="0.01" value={cashForm.milk_rate} onChange={e=>setCashForm(p=>({...p,milk_rate:e.target.value}))} className="input font-mono"/></div>
-                  </div>
-                )}
-                {saleTab==='products' && <ProductPicker setter={setCashForm}/>}
-                <ItemList form={cashForm} setter={setCashForm}/>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="label">Qty (L)</label><input type="number" step="0.1" value={cashForm.milk_qty} onChange={e=>setCashForm(p=>({...p,milk_qty:e.target.value}))} className="input font-mono"/></div>
+                  <div><label className="label">Rate/L</label><input type="number" step="0.01" value={cashForm.milk_rate} onChange={e=>setCashForm(p=>({...p,milk_rate:e.target.value}))} className="input font-mono"/></div>
+                </div>
                 {calcTotal(cashForm)>0 && <div className="bg-emerald-50 rounded-lg px-3 py-2 text-sm font-bold text-emerald-700">Total: {fmt(calcTotal(cashForm))}</div>}
                 <button type="submit" disabled={saving||!selCustomer} className="btn-primary w-full"><Printer size={15}/>Complete Sale + Print Receipt</button>
               </form>
@@ -338,21 +278,11 @@ export default function Sales() {
           {saleType==='walkin' && (
             <div className="card max-w-lg mx-auto space-y-4">
               <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-500">No customer details required. Cash only. Receipt generated immediately.</div>
-              <div className="flex gap-2">
-                {['milk','products'].map(t=>(
-                  <button key={t} type="button" onClick={()=>setSaleTab(t)}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-medium capitalize transition ${saleTab===t?'bg-[#1d6faa] text-white':'bg-slate-100 text-slate-500'}`}>{t}</button>
-                ))}
-              </div>
               <form onSubmit={onWalkin} className="space-y-3">
-                {saleTab==='milk' && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="label">Qty (L)</label><input type="number" step="0.1" value={walkinForm.milk_qty} onChange={e=>setWalkinForm(p=>({...p,milk_qty:e.target.value}))} className="input font-mono"/></div>
-                    <div><label className="label">Rate/L</label><input type="number" step="0.01" value={walkinForm.milk_rate} onChange={e=>setWalkinForm(p=>({...p,milk_rate:e.target.value}))} className="input font-mono"/></div>
-                  </div>
-                )}
-                {saleTab==='products' && <ProductPicker setter={setWalkinForm}/>}
-                <ItemList form={walkinForm} setter={setWalkinForm}/>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="label">Qty (L)</label><input type="number" step="0.1" value={walkinForm.milk_qty} onChange={e=>setWalkinForm(p=>({...p,milk_qty:e.target.value}))} className="input font-mono"/></div>
+                  <div><label className="label">Rate/L</label><input type="number" step="0.01" value={walkinForm.milk_rate} onChange={e=>setWalkinForm(p=>({...p,milk_rate:e.target.value}))} className="input font-mono"/></div>
+                </div>
                 {calcTotal(walkinForm)>0 && <div className="bg-emerald-50 rounded-lg px-3 py-2 text-sm font-bold text-emerald-700">Total: {fmt(calcTotal(walkinForm))}</div>}
                 <button type="submit" disabled={saving} className="btn-primary w-full"><Printer size={15}/>Print Receipt</button>
               </form>

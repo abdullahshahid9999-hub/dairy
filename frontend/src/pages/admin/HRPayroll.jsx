@@ -25,12 +25,10 @@ const deptColor = { sales:'badge-green', purchase:'badge-blue' };
 export default function HRPayroll() {
   const [tab, setTab]         = useState('employees');
   const [employees, setEmps]  = useState([]);
-  const [payroll, setPayroll] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal]     = useState(null);
   const [selEmp, setSel]      = useState(null);
   const [saving, setSaving]   = useState(false);
-  const [payMonth, setMonth]  = useState(format(new Date(),'yyyy-MM'));
   const [showPass, setShowPass] = useState(false);
   const [fireTarget, setFire] = useState(null);
   const [showFired, setShowFired] = useState(false);
@@ -60,11 +58,8 @@ export default function HRPayroll() {
     const endpoint = showFired ? '/hr/employees/all' : '/hr/employees';
     api.get(endpoint).then(r=>setEmps(r.data.data||[])).finally(()=>setLoading(false));
   };
-  
-  const loadPayroll = () => api.get(`/hr/payroll?month=${payMonth}`).then(r=>setPayroll(r.data.data||[]));
 
   useEffect(()=>{ loadEmps(); },[showFired]);
-  useEffect(()=>{ if(tab==='payroll') loadPayroll(); },[tab,payMonth]);
   useEffect(()=>{ api.get('/shops?limit=100').then(r=>setShops(r.data.data||[])); },[]);
 
   const openEdit = (e) => {
@@ -146,20 +141,11 @@ export default function HRPayroll() {
     catch { toast.error('Failed'); }
   };
 
-  const processPayroll = async () => {
-    setSaving(true);
-    try {
-      const r = await api.post('/hr/payroll/process', { payroll_month: payMonth });
-      toast.success(r.data.message); loadPayroll();
-    } catch (err) { toast.error(err.response?.data?.message||'Failed'); }
-    finally { setSaving(false); }
-  };
-
-  const TABS = [{ id:'employees',label:'Employees',icon:Users },{ id:'payroll',label:'Payroll',icon:DollarSign }];
+  const TABS = [{ id:'employees',label:'Employees',icon:Users }];
 
   return (
     <div className="space-y-6">
-      <PageHeader title="HR & Payroll" subtitle="Team management with role-based access"
+      <PageHeader title="HR" subtitle="Team management with role-based access"
         action={<div className="flex gap-2"><button onClick={runMigration} className="btn-ghost text-xs text-slate-400 border border-slate-200 px-3 py-1.5 rounded-xl hover:text-slate-600">⚙ Fix DB</button><button onClick={()=>{ setModal('add'); setForm(emptyForm); }} className="btn-primary"><Plus size={16}/>Add Employee</button></div>}/>
 
       <div className="flex gap-1 bg-white border border-[#d1dce8] rounded-xl p-1 w-fit">
@@ -216,39 +202,6 @@ export default function HRPayroll() {
             </table>
           </div>
         </>
-      )}
-
-      {tab==='payroll' && (
-        <div className="space-y-4">
-          <div className="card flex flex-wrap items-end gap-4">
-            <div><label className="label">Month</label>
-              <input type="month" className="input w-44" value={payMonth} onChange={e=>setMonth(e.target.value)}/></div>
-            <button onClick={processPayroll} disabled={saving} className="btn-primary">
-              <CreditCard size={16}/>{saving?'Processing…':'Process Payroll'}
-            </button>
-            <p className="text-xs text-slate-400 self-end">Advances auto-deducted. Expense entry auto-created.</p>
-          </div>
-          <div className="card p-0 overflow-hidden">
-            <table className="table-auto w-full">
-              <thead><tr><th>Employee</th><th>Base</th><th>Allowances</th><th>Adv. Deduction</th><th>Net Pay</th><th>Status</th><th></th></tr></thead>
-              <tbody>
-                {payroll.length===0
-                  ? <tr><td colSpan={7}><EmptyState icon={DollarSign} title="No payroll" description={`Process for ${payMonth}`}/></td></tr>
-                  : payroll.map(p=>(
-                    <tr key={p.id}>
-                      <td><div className="font-medium">{p.employee_name}</div><div className="text-xs text-slate-400 font-mono">{p.emp_code}</div></td>
-                      <td className="font-mono">{fmt(p.base_salary)}</td>
-                      <td className="font-mono text-emerald-600">{parseFloat(p.allowances)>0?fmt(p.allowances):'—'}</td>
-                      <td className="font-mono text-red-500">{parseFloat(p.advance_deduction)>0?`-${fmt(p.advance_deduction)}`:'—'}</td>
-                      <td className="font-mono font-bold text-emerald-600">{fmt(p.net_salary)}</td>
-                      <td><span className={`badge ${p.status==='paid'?'badge-green':'badge-yellow'}`}>{p.status}</span></td>
-                      <td>{p.status==='draft'&&<button onClick={async()=>{ await api.patch(`/hr/payroll/${p.id}/pay`); loadPayroll(); }} className="btn-ghost text-xs py-1 px-2">Pay</button>}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
       )}
 
       {/* Add/Edit Employee Modal */}

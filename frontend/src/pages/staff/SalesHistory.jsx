@@ -92,9 +92,6 @@ export default function SalesHistory() {
                   {parseFloat(r.milk_qty) > 0 && (
                     <span className="flex items-center gap-1"><Milk size={11}/>{parseFloat(r.milk_qty).toFixed(1)}L</span>
                   )}
-                  {parseFloat(r.products_amount) > 0 && (
-                    <span className="flex items-center gap-1"><Package size={11}/>{fmt(r.products_amount)}</span>
-                  )}
                 </div>
               </div>
             </div>

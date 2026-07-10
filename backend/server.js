@@ -122,12 +122,12 @@ app.use('/api/farmers',   require('./src/routes/farmers'));
 app.use('/api/milk',      require('./src/routes/milk'));
 app.use('/api/billing',   require('./src/routes/billing'));
 app.use('/api/sales',     require('./src/routes/sales'));
-app.use('/api/vehicles',  require('./src/routes/vehicles'));
+
 app.use('/api/shops',     require('./src/routes/shops'));
 app.use('/api/hr',        require('./src/routes/hr'));
 app.use('/api/expenses',  require('./src/routes/expenses'));
 app.use('/api/reports',   require('./src/routes/reports'));
-app.use('/api/audit',     require('./src/routes/audit'));
+
 const { dashRouter, staffDashRouter } = require('./src/routes/dashboard');
 app.use('/api/dashboard', dashRouter);
 app.use('/api/staff/dashboard', staffDashRouter);
@@ -135,7 +135,6 @@ app.use('/api/staff/dashboard', staffDashRouter);
 const settingsRoutes = require('./src/routes/settings');
 app.use('/api/settings', settingsRoutes);
 app.use('/api/customers', require('./src/routes/customers'));
-app.use('/api/products',  require('./src/routes/products'));
 app.use('/api/receipts',  require('./src/routes/receipts'));
 app.use('/api/invoices',  require('./src/routes/invoices'));
 
@@ -232,20 +231,6 @@ async function runAutoMigration() {
       created_by   BIGINT REFERENCES users(id) ON DELETE SET NULL,
       created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,
-    `CREATE TABLE IF NOT EXISTS payroll (
-      id               BIGSERIAL PRIMARY KEY,
-      employee_id      BIGINT NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
-      payroll_month    VARCHAR(7) NOT NULL,
-      base_salary      NUMERIC(10,2) NOT NULL,
-      adjustments      NUMERIC(10,2) NOT NULL DEFAULT 0,
-      advance_deducted NUMERIC(10,2) NOT NULL DEFAULT 0,
-      net_salary       NUMERIC(10,2) NOT NULL,
-      status           VARCHAR(20) NOT NULL DEFAULT 'pending',
-      paid_date        DATE,
-      created_by       BIGINT REFERENCES users(id) ON DELETE SET NULL,
-      created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE(employee_id, payroll_month)
-    )`,
     // ── Core business tables ──────────────────────────────────────────────
     `CREATE TABLE IF NOT EXISTS customers (
       id            BIGSERIAL PRIMARY KEY,
@@ -265,17 +250,6 @@ async function runAutoMigration() {
       created_by    BIGINT REFERENCES users(id) ON DELETE SET NULL,
       created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,
-    `CREATE TABLE IF NOT EXISTS products (
-      id          BIGSERIAL PRIMARY KEY,
-      name        VARCHAR(150) NOT NULL,
-      sku         VARCHAR(50) UNIQUE,
-      unit        VARCHAR(20) DEFAULT 'kg',
-      price       NUMERIC(10,2) NOT NULL DEFAULT 0,
-      stock_qty   NUMERIC(10,3) DEFAULT 0,
-      is_active   BOOLEAN DEFAULT TRUE,
-      created_by  BIGINT REFERENCES users(id) ON DELETE SET NULL,
-      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )`,
     `CREATE TABLE IF NOT EXISTS receipts (
       id               BIGSERIAL PRIMARY KEY,
       receipt_no       VARCHAR(30) UNIQUE NOT NULL,
@@ -286,7 +260,6 @@ async function runAutoMigration() {
       period_end       DATE,
       milk_qty         NUMERIC(10,3) DEFAULT 0,
       milk_amount      NUMERIC(10,2) DEFAULT 0,
-      products_amount  NUMERIC(10,2) DEFAULT 0,
       total_amount     NUMERIC(10,2) NOT NULL DEFAULT 0,
       paid_amount      NUMERIC(10,2) DEFAULT 0,
       status           VARCHAR(20) DEFAULT 'paid',
@@ -294,16 +267,6 @@ async function runAutoMigration() {
       shop_id          BIGINT REFERENCES shops(id) ON DELETE SET NULL,
       created_by       BIGINT REFERENCES users(id) ON DELETE SET NULL,
       created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )`,
-    `CREATE TABLE IF NOT EXISTS receipt_items (
-      id          BIGSERIAL PRIMARY KEY,
-      receipt_id  BIGINT NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
-      product_id  BIGINT REFERENCES products(id) ON DELETE SET NULL,
-      product_name VARCHAR(150),
-      qty         NUMERIC(10,3) NOT NULL,
-      price       NUMERIC(10,2) NOT NULL,
-      amount      NUMERIC(10,2) NOT NULL,
-      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,
     `CREATE TABLE IF NOT EXISTS invoices (
       id             BIGSERIAL PRIMARY KEY,

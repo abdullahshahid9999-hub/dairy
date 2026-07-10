@@ -31,7 +31,7 @@ router.use(authenticate, adminOnly);
 
 const DEPTS = ['sales','purchase'];
 const DEPT_PERMS = {
-  sales:    ['sales','customers','products','dashboard'],
+  sales:    ['sales','customers','dashboard'],
   purchase: ['milk','customers_view','dashboard'],
 };
 
@@ -239,83 +239,6 @@ router.post('/employees/:id/adjustment',
     } catch(err){next(err);}
   }
 );
-
-// Payroll
-router.get('/payroll', async (req,res,next) => {
-  try {
-    const {month} = req.query;
-    let sql = `SELECT p.*,e.name AS employee_name,e.emp_code,e.designation FROM payroll p JOIN employees e ON e.id=p.employee_id WHERE 1=1`;
-    const params=[];
-    if (month){sql+=' AND p.payroll_month=$1';params.push(month);}
-    sql+=' ORDER BY p.payroll_month DESC,e.name';
-    const [rows] = await db.query(sql,params);
-    res.json({success:true,data:rows});
-  } catch(err){next(err);}
-});
-
-router.post('/payroll/process',
-  [body('payroll_month').matches(/^\d{4}-\d{2}$/)],
-  validate,
-  async (req,res,next) => {
-    try {
-      const {payroll_month,allowances_map={}} = req.body;
-      const results = await db.transaction(async (conn) => {
-        const [emps] = await conn.query('SELECT * FROM employees WHERE is_active=TRUE');
-        const processed=[];
-        for (const emp of emps) {
-          const ex = await conn.queryOne('SELECT id FROM payroll WHERE employee_id=$1 AND payroll_month=$2',[emp.id,payroll_month]);
-          if(ex) continue;
-          const advRow = await conn.queryOne("SELECT COALESCE(SUM(amount-recovered),0) AS p FROM advance_salary WHERE employee_id=$1 AND status!='recovered'",[emp.id]);
-          const pending=parseFloat(advRow?.p||0);
-          const allowances=parseFloat(allowances_map[emp.id]||0);
-          // Get bonus/deductions for this month
-          const [adjs] = await conn.query("SELECT type,amount FROM salary_adjustments WHERE employee_id=$1 AND apply_month=$2 AND applied=FALSE",[emp.id,payroll_month]);
-          const bonusTotal = adjs.filter(a=>a.type==='bonus').reduce((s,a)=>s+parseFloat(a.amount),0);
-          const dedTotal   = adjs.filter(a=>a.type==='deduction').reduce((s,a)=>s+parseFloat(a.amount),0);
-          const advDed=Math.min(pending,parseFloat(emp.base_salary));
-          const net=parseFloat(emp.base_salary)+allowances+bonusTotal-dedTotal-advDed;
-          const pr = await conn.queryOne(
-            `INSERT INTO payroll (employee_id,payroll_month,base_salary,allowances,advance_deduction,net_salary,processed_by)
-             VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-            [emp.id,payroll_month,emp.base_salary,allowances+bonusTotal-dedTotal,advDed.toFixed(2),Math.max(0,net).toFixed(2),req.user.id]
-          );
-          // Mark adjustments applied
-          if(adjs.length>0)
-            await conn.query("UPDATE salary_adjustments SET applied=TRUE WHERE employee_id=$1 AND apply_month=$2",[emp.id,payroll_month]);
-          // Reduce advances
-          if(advDed>0){
-            const [advs] = await conn.query("SELECT id,amount,recovered FROM advance_salary WHERE employee_id=$1 AND status!='recovered' ORDER BY advance_date",[emp.id]);
-            let rem=advDed;
-            for(const adv of advs){
-              if(rem<=0) break;
-              const bal=parseFloat(adv.amount)-parseFloat(adv.recovered);
-              const apply=Math.min(bal,rem);
-              const newRec=parseFloat(adv.recovered)+apply;
-              const stat=newRec>=parseFloat(adv.amount)?'recovered':'partial';
-              await conn.query('UPDATE advance_salary SET recovered=$1,status=$2 WHERE id=$3',[newRec.toFixed(2),stat,adv.id]);
-              rem-=apply;
-            }
-          }
-          // Auto expense
-          const salCat=await conn.queryOne("SELECT id FROM expense_categories WHERE name='Salaries' LIMIT 1");
-          if(salCat){
-            const [yr,mn]=payroll_month.split('-');
-            await conn.query('INSERT INTO expenses (category_id,expense_date,amount,description,reference_type,reference_id,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-              [salCat.id,`${yr}-${mn}-01`,Math.max(0,net).toFixed(2),`Salary: ${emp.name} (${payroll_month})`,'payroll',pr?.id,req.user.id]);
-          }
-          processed.push({id:pr?.id,employee:emp.name,net_salary:Math.max(0,net).toFixed(2),bonus:bonusTotal,deduction:dedTotal});
-        }
-        return processed;
-      });
-      res.json({success:true,message:`${results.length} processed`,data:results});
-    } catch(err){next(err);}
-  }
-);
-
-router.patch('/payroll/:id/pay', async (req,res,next) => {
-  try{await db.query("UPDATE payroll SET status='paid',paid_at=NOW() WHERE id=$1",[req.params.id]);res.json({success:true});}
-  catch(err){next(err);}
-});
 
 router.get('/users', async (_,res,next) => {
   try{const[r]=await db.query('SELECT id,name,email,role,department,is_active,created_at FROM users ORDER BY created_at DESC');res.json({success:true,data:r});}

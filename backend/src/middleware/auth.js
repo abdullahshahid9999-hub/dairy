@@ -5,7 +5,7 @@ const JWT_SECRET = process.env.JWT_SECRET || null;
 
 // Department → allowed pages map
 const DEPT_PERMS = {
-  sales:    ['sales','customers','products','dashboard'],
+  sales:    ['sales','customers','dashboard'],
   purchase: ['milk','customers_view','dashboard'],
 };
 

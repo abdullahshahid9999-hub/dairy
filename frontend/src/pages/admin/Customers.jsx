@@ -16,7 +16,6 @@ const defaultForm = { name:'', phone:'', address:'', customer_type:'bulk', compa
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
-  const [products, setProducts]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -30,19 +29,16 @@ export default function Customers() {
   const [bulkBill, setBulkBill]   = useState({ date_from:'', date_to:'' });
   const [hhExtra, setHhExtra]     = useState({ extra_qty:'', entry_date: today(), notes:'' });
   const [hhBill, setHhBill]       = useState({ year: new Date().getFullYear(), month: new Date().getMonth()+1 });
-  const [cashSale, setCashSale]   = useState({ milk_qty:'', milk_rate:'', items:[], sale_date: today() });
-  const [walkinSale, setWalkinSale] = useState({ milk_qty:'', milk_rate:'', items:[], sale_date: today() });
-  const [saleTab, setSaleTab]     = useState('milk');
+  const [cashSale, setCashSale]   = useState({ milk_qty:'', milk_rate:'', sale_date: today() });
+  const [walkinSale, setWalkinSale] = useState({ milk_qty:'', milk_rate:'', sale_date: today() });
 
   function today() { return new Date().toISOString().slice(0,10); }
 
   const loadAll = () => {
     setLoading(true);
     const q = typeFilter ? `&type=${typeFilter}` : '';
-    Promise.all([
-      api.get(`/customers?search=${encodeURIComponent(search)}${q}`),
-      api.get('/products'),
-    ]).then(([c,p])=>{ setCustomers(c.data.data||[]); setProducts(p.data.data||[]); }).finally(()=>setLoading(false));
+    api.get(`/customers?search=${encodeURIComponent(search)}${q}`)
+      .then(r=>setCustomers(r.data.data||[])).finally(()=>setLoading(false));
   };
   useEffect(()=>{ loadAll(); }, [search, typeFilter]);
 
@@ -108,21 +104,13 @@ export default function Customers() {
     finally { setSaving(false); }
   };
 
-  const addItemToSale = (setter, product) => {
-    setter(prev => {
-      const existing = prev.items.find(i=>i.product_id===product.id);
-      if (existing) return { ...prev, items: prev.items.map(i=>i.product_id===product.id?{...i,qty:i.qty+1}:i) };
-      return { ...prev, items: [...prev.items, { product_id:product.id, product_name:product.name, qty:1, price:parseFloat(product.price) }] };
-    });
-  };
-
   const onCashSale = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
       const r = await api.post('/customers/sale', { ...cashSale, customer_id:selC.id, customer_type:'cash' });
       toast.success(`Receipt: ${r.data.data.receipt_no} — ${fmt(r.data.data.total)}`);
-      setCashSale({ milk_qty:'', milk_rate:'', items:[], sale_date:today() });
+      setCashSale({ milk_qty:'', milk_rate:'', sale_date:today() });
       openDetail(selC);
     } catch (err) { toast.error(err.response?.data?.message||'Failed'); }
     finally { setSaving(false); }
@@ -134,7 +122,7 @@ export default function Customers() {
     try {
       const r = await api.post('/customers/sale', { ...walkinSale, customer_type:'walkin' });
       toast.success(`Receipt: ${r.data.data.receipt_no} — ${fmt(r.data.data.total)}`);
-      setWalkinSale({ milk_qty:'', milk_rate:'', items:[], sale_date:today() });
+      setWalkinSale({ milk_qty:'', milk_rate:'', sale_date:today() });
       setModal(null);
     } catch (err) { toast.error(err.response?.data?.message||'Failed'); }
     finally { setSaving(false); }
@@ -145,7 +133,7 @@ export default function Customers() {
     toast.success('Marked as paid'); openDetail(selC);
   };
 
-  const calcSaleTotal = (s) => (parseFloat(s.milk_qty||0)*parseFloat(s.milk_rate||0)) + s.items.reduce((t,i)=>t+i.qty*i.price,0);
+  const calcSaleTotal = (s) => (parseFloat(s.milk_qty||0)*parseFloat(s.milk_rate||0));
 
   const typeStats = Object.keys(TYPES).map(t=>({ type:t, count: customers.filter(c=>c.customer_type===t).length }));
 
@@ -312,31 +300,10 @@ export default function Customers() {
             {detail.customer_type==='cash' && (
               <form onSubmit={onCashSale} className="border border-slate-200 rounded-xl p-4 space-y-3">
                 <p className="text-sm font-semibold text-slate-600">Record Sale</p>
-                <div className="flex gap-2 mb-2">
-                  {['milk','products'].map(t=><button key={t} type="button" onClick={()=>setSaleTab(t)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition ${saleTab===t?'bg-[#1d6faa] text-white':'bg-slate-100 text-slate-500'}`}>{t}</button>)}
-                </div>
-                {saleTab==='milk' && <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div><label className="label">Qty (L)</label><input type="number" step="0.1" value={cashSale.milk_qty} onChange={e=>setCashSale(p=>({...p,milk_qty:e.target.value}))} className="input font-mono"/></div>
                   <div><label className="label">Rate/L</label><input type="number" step="0.01" value={cashSale.milk_rate} onChange={e=>setCashSale(p=>({...p,milk_rate:e.target.value}))} className="input font-mono"/></div>
-                </div>}
-                {saleTab==='products' && <div className="grid grid-cols-2 gap-2">
-                  {products.map(p=><button key={p.id} type="button" onClick={()=>addItemToSale(setCashSale,p)}
-                    className="flex justify-between items-center border border-slate-200 rounded-lg px-3 py-2 text-xs hover:border-[#1d6faa] transition">
-                    <span>{p.name}</span><span className="font-mono text-[#1d6faa]">{fmt(p.price)}</span>
-                  </button>)}
-                </div>}
-                {cashSale.items.length>0 && <div className="space-y-1">{cashSale.items.map(i=>(
-                  <div key={i.product_id} className="flex justify-between items-center text-xs bg-slate-50 rounded-lg px-3 py-1.5">
-                    <span>{i.product_name}</span>
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={()=>setCashSale(p=>({...p,items:p.items.map(x=>x.product_id===i.product_id?{...x,qty:Math.max(0,x.qty-1)}:x).filter(x=>x.qty>0)}))} className="w-5 h-5 bg-slate-200 rounded text-center">-</button>
-                      <span className="font-semibold">{i.qty}</span>
-                      <button type="button" onClick={()=>setCashSale(p=>({...p,items:p.items.map(x=>x.product_id===i.product_id?{...x,qty:x.qty+1}:x)}))} className="w-5 h-5 bg-slate-200 rounded text-center">+</button>
-                      <span className="font-mono w-16 text-right">{fmt(i.qty*i.price)}</span>
-                    </div>
-                  </div>
-                ))}</div>}
+                </div>
                 {calcSaleTotal(cashSale)>0 && <div className="bg-emerald-50 rounded-lg px-3 py-2 text-sm font-bold text-emerald-700">Total: {fmt(calcSaleTotal(cashSale))}</div>}
                 <button type="submit" disabled={saving} className="btn-primary w-full">{saving?'…':'Record & Print Receipt'}</button>
               </form>
@@ -365,31 +332,10 @@ export default function Customers() {
       <Modal isOpen={modal==='walkin'} onClose={()=>setModal(null)} title="Walk-in Sale" size="sm">
         <form onSubmit={onWalkinSale} className="space-y-4">
           <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-500">No customer details required. Immediate cash payment only.</div>
-          <div className="flex gap-2 mb-2">
-            {['milk','products'].map(t=><button key={t} type="button" onClick={()=>setSaleTab(t)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition ${saleTab===t?'bg-[#1d6faa] text-white':'bg-slate-100 text-slate-500'}`}>{t}</button>)}
-          </div>
-          {saleTab==='milk' && <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div><label className="label">Qty (L)</label><input type="number" step="0.1" value={walkinSale.milk_qty} onChange={e=>setWalkinSale(p=>({...p,milk_qty:e.target.value}))} className="input font-mono"/></div>
             <div><label className="label">Rate/L</label><input type="number" step="0.01" value={walkinSale.milk_rate} onChange={e=>setWalkinSale(p=>({...p,milk_rate:e.target.value}))} className="input font-mono"/></div>
-          </div>}
-          {saleTab==='products' && <div className="grid grid-cols-2 gap-2">
-            {products.map(p=><button key={p.id} type="button" onClick={()=>addItemToSale(setWalkinSale,p)}
-              className="flex justify-between items-center border border-slate-200 rounded-lg px-3 py-2 text-xs hover:border-[#1d6faa] transition">
-              <span>{p.name}</span><span className="font-mono text-[#1d6faa]">{fmt(p.price)}</span>
-            </button>)}
-          </div>}
-          {walkinSale.items.length>0 && <div className="space-y-1">{walkinSale.items.map(i=>(
-            <div key={i.product_id} className="flex justify-between items-center text-xs bg-slate-50 rounded-lg px-3 py-1.5">
-              <span>{i.product_name}</span>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={()=>setWalkinSale(p=>({...p,items:p.items.map(x=>x.product_id===i.product_id?{...x,qty:Math.max(0,x.qty-1)}:x).filter(x=>x.qty>0)}))} className="w-5 h-5 bg-slate-200 rounded text-center">-</button>
-                <span className="font-semibold">{i.qty}</span>
-                <button type="button" onClick={()=>setWalkinSale(p=>({...p,items:p.items.map(x=>x.product_id===i.product_id?{...x,qty:x.qty+1}:x)}))} className="w-5 h-5 bg-slate-200 rounded text-center">+</button>
-                <span className="font-mono w-16 text-right">{fmt(i.qty*i.price)}</span>
-              </div>
-            </div>
-          ))}</div>}
+          </div>
           {calcSaleTotal(walkinSale)>0 && <div className="bg-emerald-50 rounded-lg px-3 py-2 text-sm font-bold text-emerald-700">Total: {fmt(calcSaleTotal(walkinSale))}</div>}
           <div className="flex justify-end gap-3">
             <button type="button" onClick={()=>setModal(null)} className="btn-ghost">Cancel</button>
