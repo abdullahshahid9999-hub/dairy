@@ -21,7 +21,7 @@ export default function Farmers() {
   useEffect(()=>{load();},[load]);
 
   const openAdd=()=>{setEditing(null);reset({});setModal('form');};
-  const openEdit=(f)=>{setEditing(f);reset({name:f.name,phone:f.phone||'',address:f.address||'',id_card:f.id_card||'',bank_account:f.bank_account||'',base_rate:f.base_rate||'',ideal_fat:f.ideal_fat||'',fat_correction:f.fat_correction||'',ideal_snf:f.ideal_snf||'',snf_correction:f.snf_correction||''});setModal('form');};
+  const openEdit=(f)=>{setEditing(f);reset({name:f.name,phone:f.phone||'',address:f.address||'',id_card:f.id_card||'',bank_account:f.bank_account||'',base_rate:f.base_rate||''});setModal('form');};
 
   const onSubmit=async(data)=>{
     setSaving(true);
@@ -38,17 +38,16 @@ export default function Farmers() {
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" className="input pl-9"/></div>
       <div className="card p-0 overflow-hidden">
         <table className="table-auto w-full">
-          <thead><tr><th>Code</th><th>Name</th><th>Phone</th><th>Base Rate</th><th>FAT Settings</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Code</th><th>Name</th><th>Phone</th><th>Base Rate</th><th>Status</th><th></th></tr></thead>
           <tbody>
-            {loading?[...Array(5)].map((_,i)=><SkeletonRow key={i} cols={7}/>):
-             farmers.length===0?<tr><td colSpan={7}><EmptyState icon={Users} title="No farmers" description="Add your first supplier"/></td></tr>:
+            {loading?[...Array(5)].map((_,i)=><SkeletonRow key={i} cols={6}/>):
+             farmers.length===0?<tr><td colSpan={6}><EmptyState icon={Users} title="No farmers" description="Add your first supplier"/></td></tr>:
              farmers.map(f=>(
               <tr key={f.id} className={!f.is_active?'opacity-50':''}>
                 <td><span className="font-mono text-xs text-[#1d6faa] font-semibold">{f.farmer_code}</span></td>
                 <td><div className="font-medium">{f.name}</div>{f.address&&<div className="text-xs text-slate-400 flex items-center gap-1"><MapPin size={10}/>{f.address}</div>}</td>
                 <td className="text-sm text-slate-500">{f.phone||'—'}</td>
                 <td><span className="font-mono font-semibold text-emerald-600">{fmt(f.base_rate)}/L</span></td>
-                <td><div className="text-xs text-slate-500">FAT: <b>{f.ideal_fat||'—'}%</b> · Adj: <b>{f.fat_correction||'—'}</b></div></td>
                 <td>{f.is_active?<span className="badge-green text-xs">Active</span>:<span className="badge-red text-xs">Inactive</span>}</td>
                 <td><div className="flex gap-1.5">
                   <button onClick={()=>openEdit(f)} className="btn-ghost p-1.5"><Edit2 size={13}/></button>
@@ -69,14 +68,8 @@ export default function Farmers() {
             <div className="col-span-2"><label className="label">Bank Account</label><input {...register('bank_account')} className="input"/></div>
           </div>
           <div className="border border-slate-200 rounded-xl p-4 space-y-3">
-            <p className="text-sm font-semibold text-slate-600 flex items-center gap-2"><Percent size={14}/>Dynamic Pricing</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2"><label className="label">Base Rate (PKR/L) *</label><input type="number" step="0.01" {...register('base_rate',{required:true})} className="input font-mono"/></div>
-              <div><label className="label">Ideal FAT %</label><input type="number" step="0.01" {...register('ideal_fat')} className="input font-mono"/></div>
-              <div><label className="label">FAT Correction</label><input type="number" step="0.01" {...register('fat_correction')} className="input font-mono"/></div>
-              <div><label className="label">Ideal SNF %</label><input type="number" step="0.01" {...register('ideal_snf')} className="input font-mono"/></div>
-              <div><label className="label">SNF Correction</label><input type="number" step="0.01" {...register('snf_correction')} className="input font-mono"/></div>
-            </div>
+            <p className="text-sm font-semibold text-slate-600 flex items-center gap-2"><Percent size={14}/>Pricing</p>
+            <div><label className="label">Base Rate (PKR/L) *</label><input type="number" step="0.01" {...register('base_rate',{required:true})} className="input font-mono"/></div>
           </div>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={()=>setModal(null)} className="btn-ghost">Cancel</button>

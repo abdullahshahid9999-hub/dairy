@@ -8,8 +8,8 @@ router.use(authenticate);
 
 const rules = [
   body('name').trim().notEmpty().isLength({ max: 100 }),
-  body('phone').trim().notEmpty().isLength({ max: 20 }),
-  body('address').trim().notEmpty(),
+  body('phone').optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 20 }),
+  body('address').optional({ nullable: true, checkFalsy: true }).trim(),
   body('base_rate').isFloat({ min: 0 }),
   body('ideal_fat').optional({ nullable: true }).isFloat({ min: 0, max: 20 }),
   body('ideal_snf').optional({ nullable: true }).isFloat({ min: 0, max: 20 }),
