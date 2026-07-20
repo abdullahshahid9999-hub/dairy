@@ -26,13 +26,11 @@ import Settings   from './pages/admin/Settings';
 import Customers  from './pages/admin/Customers';
 import BulkSalesPortal from './pages/admin/BulkSalesPortal';
 import Invoices   from './pages/admin/Invoices';
-import WalkIn     from './pages/admin/WalkIn';
 
 import StaffDashboard from './pages/staff/StaffDashboard';
 import MilkEntry      from './pages/staff/MilkEntry';
 import MilkHistory    from './pages/staff/MilkHistory';
 import SalesDashboard from './pages/staff/SalesDashboard';
-import SalesEntry     from './pages/staff/SalesEntry';
 import SalesHistory   from './pages/staff/SalesHistory';
 
 function RequireAuth({ children, adminOnly = false, dept = null }) {
@@ -105,7 +103,6 @@ export default function App() {
           <Route path="customers"  element={<Customers />} />
           <Route path="bulk-sales" element={<BulkSalesPortal />} />
           <Route path="invoices"   element={<Invoices />} />
-          <Route path="walkin"     element={<WalkIn />} />
         </Route>
 
         {/* Purchase staff — milk collection */}
@@ -118,7 +115,6 @@ export default function App() {
         {/* Sales staff — walk-in sales */}
         <Route path="/sales" element={<RequireAuth dept="sales"><SalesLayout /></RequireAuth>}>
           <Route index          element={<SalesDashboard />} />
-          <Route path="entry"   element={<SalesEntry />} />
           <Route path="history" element={<SalesHistory />} />
         </Route>
 

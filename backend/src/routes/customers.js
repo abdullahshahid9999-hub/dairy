@@ -26,7 +26,7 @@ router.get('/', async (req, res, next) => {
 
 // ── POST add customer ────────────────────────────────────────
 router.post('/', adminOnly,
-  [body('name').trim().notEmpty(), body('customer_type').isIn(['bulk','household','cash','walkin'])],
+  [body('name').trim().notEmpty(), body('customer_type').equals('bulk')],
   validate,
   async (req, res, next) => {
     try {
@@ -57,8 +57,7 @@ router.get('/:id', async (req, res, next) => {
     if (!c) return res.status(404).json({ success:false, message:'Not found' });
     const [receipts] = await db.query('SELECT * FROM receipts WHERE customer_id=$1 ORDER BY receipt_date DESC LIMIT 30', [req.params.id]);
     const [ledger]   = await db.query('SELECT * FROM bulk_ledger WHERE customer_id=$1 ORDER BY entry_date DESC LIMIT 50', [req.params.id]);
-    const [extra]    = await db.query('SELECT * FROM household_extra WHERE customer_id=$1 ORDER BY entry_date DESC LIMIT 30', [req.params.id]);
-    res.json({ success:true, data:{ ...c, receipts, ledger, extra } });
+    res.json({ success:true, data:{ ...c, receipts, ledger } });
   } catch (err) { next(err); }
 });
 
@@ -164,169 +163,17 @@ router.post('/:id/bulk-bill', adminOnly, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ── HOUSEHOLD: add extra milk ────────────────────────────────
-router.post('/:id/extra-milk',
-  [body('extra_qty').isFloat({min:0.1}), body('entry_date').isDate()],
-  validate,
-  async (req, res, next) => {
-    try {
-      const c = await db.queryOne('SELECT rate_per_liter FROM customers WHERE id=$1', [req.params.id]);
-      const { extra_qty, entry_date, notes } = req.body;
-      const amount = parseFloat(extra_qty) * parseFloat(c.rate_per_liter);
-      await db.query(
-        'INSERT INTO household_extra (customer_id,entry_date,extra_qty,rate,amount,notes,recorded_by) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-        [req.params.id, entry_date, extra_qty, c.rate_per_liter, amount.toFixed(2), notes||null, req.user.id]
-      );
-      res.status(201).json({ success:true, data:{ amount } });
-    } catch (err) { next(err); }
-  }
-);
-
-// ── HOUSEHOLD: generate monthly bill ────────────────────────
-router.post('/:id/monthly-bill', adminOnly, async (req, res, next) => {
-  try {
-    const { year, month } = req.body;
-    const c = await db.queryOne('SELECT * FROM customers WHERE id=$1', [req.params.id]);
-    if (c.customer_type !== 'household') return res.status(400).json({ success:false, message:'Not a household customer' });
-    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
-    const periodStart = `${year}-${String(month).padStart(2,'0')}-01`;
-    const periodEnd   = `${year}-${String(month).padStart(2,'0')}-${daysInMonth}`;
-    const baseMilk    = parseFloat(c.daily_qty) * daysInMonth;
-    const baseAmount  = baseMilk * parseFloat(c.rate_per_liter);
-    const [extras]    = await db.query(
-      'SELECT COALESCE(SUM(extra_qty),0) AS eq, COALESCE(SUM(amount),0) AS ea FROM household_extra WHERE customer_id=$1 AND entry_date BETWEEN $2 AND $3',
-      [req.params.id, periodStart, periodEnd]
-    );
-    const totalQty    = baseMilk + parseFloat(extras[0]?.eq||0);
-    const totalAmount = baseAmount + parseFloat(extras[0]?.ea||0);
-    const seq = await db.queryOne('SELECT COALESCE(MAX(id),0) AS m FROM receipts');
-    const no  = `REC-${String(Number(seq.m)+1).padStart(6,'0')}`;
-    const r = await db.queryOne(
-      `INSERT INTO receipts (receipt_no,customer_id,customer_type,receipt_date,period_start,period_end,
-        milk_qty,milk_amount,total_amount,status,notes,created_by)
-       VALUES ($1,$2,'household',CURRENT_DATE,$3,$4,$5,$6,$7,'pending',$8,$9) RETURNING id`,
-      [no,req.params.id,periodStart,periodEnd,totalQty.toFixed(2),totalAmount.toFixed(2),totalAmount.toFixed(2),
-       `Monthly bill: base ${baseMilk}L + extra ${extras[0]?.eq||0}L`,req.user.id]
-    );
-    // Update outstanding
-    await db.query('UPDATE customers SET outstanding=outstanding+$1 WHERE id=$2', [totalAmount, req.params.id]);
-    res.status(201).json({ success:true, data:{ receipt_id:r?.id, receipt_no:no, total:totalAmount, qty:totalQty } });
-  } catch (err) { next(err); }
-});
-
-// ── CASH/WALKIN: record sale + receipt ───────────────────────
-router.post('/sale',
-  [body('customer_type').isIn(['cash','walkin']), body('milk_qty').optional().isFloat({min:0})],
-  validate,
-  async (req, res, next) => {
-    try {
-      const { customer_id, customer_type, sale_date, milk_qty=0, milk_rate=0, notes, shop_id: bodyShopId } = req.body;
-      if (customer_type==='cash' && !customer_id) return res.status(400).json({ success:false, message:'Customer required for cash sale' });
-
-      // Staff always use their assigned shop
-      const shop_id = req.user.role === 'admin'
-        ? (bodyShopId || null)
-        : (req.user.shop_id || bodyShopId || null);
-
-      const milkQtyNum = parseFloat(milk_qty) || 0;
-
-      // ── Stock check — prevent selling more milk than available ──
-      if (milkQtyNum > 0) {
-        if (shop_id) {
-          // Per-shop stock check
-          const stockRow = await db.queryOne(
-            `SELECT GREATEST(0,
-               COALESCE((SELECT SUM(quantity_liters) FROM milk_records WHERE shop_id=$1),0)
-             - COALESCE((SELECT SUM(milk_qty) FROM receipts WHERE shop_id=$1 AND milk_qty > 0),0)
-             ) AS available_stock`,
-            [shop_id]
-          );
-          const available = parseFloat(stockRow?.available_stock || 0);
-          if (milkQtyNum > available) {
-            return res.status(400).json({
-              success: false,
-              message: `Not enough milk in this shop. Available: ${available.toFixed(1)}L, Requested: ${milkQtyNum}L`
-            });
-          }
-        } else {
-          // Global stock check (no shop selected)
-          const stockRow = await db.queryOne(
-            `SELECT GREATEST(0,
-               COALESCE((SELECT SUM(quantity_liters) FROM milk_records),0)
-             - COALESCE((SELECT SUM(milk_qty) FROM receipts WHERE milk_qty > 0),0)
-             ) AS available_stock`
-          );
-          const available = parseFloat(stockRow?.available_stock || 0);
-          if (milkQtyNum > available) {
-            return res.status(400).json({
-              success: false,
-              message: `Not enough milk in stock. Available: ${available.toFixed(1)}L, Requested: ${milkQtyNum}L`
-            });
-          }
-        }
-      }
-
-      const milkAmount    = milkQtyNum * parseFloat(milk_rate);
-      const total         = milkAmount;
-
-      const seq = await db.queryOne('SELECT COALESCE(MAX(id),0) AS m FROM receipts');
-      const no  = `REC-${String(Number(seq.m)+1).padStart(6,'0')}`;
-
-      const r = await db.queryOne(
-        `INSERT INTO receipts (receipt_no,customer_id,customer_type,receipt_date,milk_qty,milk_amount,
-          total_amount,paid_amount,status,notes,shop_id,created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'paid',$9,$10,$11) RETURNING id`,
-        [no,customer_id||null,customer_type,sale_date||new Date().toISOString().slice(0,10),
-         milkQtyNum,milkAmount.toFixed(2),total.toFixed(2),total.toFixed(2),notes||null,shop_id||null,req.user.id]
-      );
-      const receiptId = r?.id;
-
-      // Auto-create invoice for cash-in
-      // Invoice creation — optional, sale completes even if invoices table missing
-      let invNo = null, invoiceId = null;
-      try {
-        const invSeq = await db.queryOne('SELECT COALESCE(MAX(id),0) AS m FROM invoices');
-        invNo  = `INV-${String(Number(invSeq?.m||0)+1).padStart(6,'0')}`;
-        const invR = await db.queryOne(
-          `INSERT INTO invoices (invoice_no,customer_id,customer_type,customer_name,invoice_date,
-             subtotal,discount,tax_pct,tax_amount,total_amount,paid_amount,status,notes,created_by)
-           VALUES ($1,$2,$3,$4,CURRENT_DATE,$5,0,0,0,$6,$7,'paid',$8,$9) RETURNING id`,
-          [invNo, customer_id||null, customer_type,
-           customer_id ? (await db.queryOne('SELECT name FROM customers WHERE id=$1',[customer_id]))?.name : 'Walk-in',
-           total.toFixed(2), total.toFixed(2), total.toFixed(2),
-           notes||null, req.user.id]
-        );
-        invoiceId = invR?.id;
-        if (invoiceId && parseFloat(milk_qty)>0) {
-          await db.query('INSERT INTO invoice_items (invoice_id,description,qty,unit,rate,amount) VALUES ($1,$2,$3,$4,$5,$6)',
-            [invoiceId, 'Milk', milk_qty, 'L', milk_rate, milkAmount.toFixed(2)]);
-        }
-      } catch(invErr) {
-        console.error('Invoice creation skipped (table may not exist yet):', invErr.message);
-      }
-
-      res.status(201).json({ success:true, data:{ receipt_id:receiptId, receipt_no:no, invoice_no:invNo, invoice_id:invoiceId, total } });
-    } catch (err) { next(err); }
-  }
-);
-
-// ── Mark receipt as paid ─────────────────────────────────────
-// GET receipts list — filterable by date, shop (for sales staff history)
+// GET receipts list — filterable by date
 router.get('/receipts', async (req, res, next) => {
   try {
-    const { date_from, date_to, shop_id, limit=100 } = req.query;
+    const { date_from, date_to, limit=100 } = req.query;
     const params = []; let pi = 1;
     const conds = ['1=1'];
     if (date_from) { conds.push(`receipt_date >= $${pi++}`); params.push(date_from); }
     if (date_to)   { conds.push(`receipt_date <= $${pi++}`); params.push(date_to); }
-    if (shop_id)   { conds.push(`shop_id = $${pi++}`); params.push(shop_id); }
-    // Staff only see their own shop's receipts
-    if (req.user.role === 'staff' && req.user.shop_id && !shop_id) {
-      conds.push(`shop_id = $${pi++}`); params.push(req.user.shop_id);
-    }
     params.push(parseInt(limit));
     const [rows] = await db.query(
-      `SELECT id,receipt_no,customer_type,receipt_date,milk_qty,milk_amount,total_amount,paid_amount,status,shop_id
+      `SELECT id,receipt_no,customer_type,receipt_date,milk_qty,milk_amount,total_amount,paid_amount,status
        FROM receipts WHERE ${conds.join(' AND ')} ORDER BY receipt_date DESC, id DESC LIMIT $${pi}`,
       params
     );
@@ -337,34 +184,19 @@ router.get('/receipts', async (req, res, next) => {
 // GET sales summary KPIs — for sales staff dashboard
 router.get('/sales-summary', async (req, res, next) => {
   try {
-    const { date_from, date_to, shop_id } = req.query;
-    const effectiveShopId = req.user.role === 'staff' ? req.user.shop_id : (shop_id || null);
-    const params = [date_from, date_to]; let pi = 3;
-    let shopCond = '';
-    if (effectiveShopId) { shopCond = ` AND shop_id = $${pi++}`; params.push(effectiveShopId); }
+    const { date_from, date_to } = req.query;
+    const params = [date_from, date_to];
 
     const row = await db.queryOne(
       `SELECT COALESCE(SUM(total_amount),0) AS total_revenue,
               COALESCE(SUM(paid_amount),0)  AS received,
               COALESCE(SUM(milk_qty),0)     AS sold_liters,
               COUNT(*)                       AS total_receipts
-       FROM receipts WHERE receipt_date BETWEEN $1 AND $2${shopCond}`,
+       FROM receipts WHERE receipt_date BETWEEN $1 AND $2`,
       params
     );
 
-    let shop_stock = 0;
-    if (effectiveShopId) {
-      const stockRow = await db.queryOne(
-        `SELECT GREATEST(0,
-           COALESCE((SELECT SUM(quantity_liters) FROM milk_records WHERE shop_id=$1),0)
-         - COALESCE((SELECT SUM(milk_qty) FROM receipts WHERE shop_id=$1 AND milk_qty > 0),0)
-         ) AS available`,
-        [effectiveShopId]
-      );
-      shop_stock = parseFloat(stockRow?.available || 0);
-    }
-
-    res.json({ success:true, data:{ ...row, shop_stock } });
+    res.json({ success:true, data:{ ...row } });
   } catch(err){next(err);}
 });
 

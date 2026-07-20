@@ -11,8 +11,6 @@ const statusIcon  = { unpaid:<AlertCircle size={11}/>, partial:<Clock size={11}/
 const CUSTOMER_CATS = [
   { value:'',          label:'All Customers' },
   { value:'bulk',      label:'Bulk' },
-  { value:'household', label:'Household' },
-  { value:'cash',      label:'Cash' },
 ];
 
 export default function Invoices() {

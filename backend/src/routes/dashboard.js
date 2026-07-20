@@ -131,23 +131,6 @@ dashRouter.get('/', async (req, res, next) => {
       return rows;
     }, []);
 
-    // Per-shop stock breakdown
-    const shopStocks = await safeQuery(async () => {
-      const [rows] = await db.query(
-        `SELECT s.id, s.shop_name, s.location,
-                GREATEST(0,
-                  COALESCE((SELECT SUM(mr.quantity_liters) FROM milk_records mr WHERE mr.shop_id=s.id),0)
-                - COALESCE((SELECT SUM(r.milk_qty) FROM receipts r WHERE r.shop_id=s.id AND r.milk_qty>0),0)
-                ) AS stock_liters,
-                COALESCE((SELECT SUM(mr.quantity_liters) FROM milk_records mr WHERE mr.shop_id=s.id AND mr.collection_date BETWEEN $1 AND $2),0) AS purchased_period,
-                COALESCE((SELECT SUM(r.total_amount) FROM receipts r WHERE r.shop_id=s.id AND r.receipt_date BETWEEN $1 AND $2),0) AS sales_period,
-                COALESCE((SELECT SUM(r.milk_qty) FROM receipts r WHERE r.shop_id=s.id AND r.receipt_date BETWEEN $1 AND $2 AND r.milk_qty>0),0) AS sold_liters_period
-         FROM shops s WHERE s.is_active=true ORDER BY s.shop_name`,
-        [start, end]
-      );
-      return rows;
-    }, []);
-
     const profit = parseFloat(salesStats?.total_revenue || 0)
                  - parseFloat(milkStats?.purchase_cost  || 0)
                  - parseFloat(expStats?.total_expenses  || 0);
@@ -174,7 +157,6 @@ dashRouter.get('/', async (req, res, next) => {
         purchase_breakdown: purchaseBreakdown || [],
         top_farmers:        topFarmers        || [],
         milk_trend:         milkTrend         || [],
-        shop_stocks:        shopStocks        || [],
       },
     });
   } catch (err) {
@@ -218,34 +200,15 @@ staffDashRouter.get('/', async (req, res, next) => {
                 mr.lactometer_reading, mr.ts_value,
                 mr.snf_computed, mr.sp_gravity,
                 ${centreExpr} AS centre_name,
-                f.name AS farmer_name, f.farmer_code,
-                s.shop_name
+                f.name AS farmer_name, f.farmer_code
          FROM milk_records mr
          JOIN farmers f ON f.id = mr.farmer_id
-         LEFT JOIN shops s ON s.id = mr.shop_id
          WHERE mr.recorded_by = $1 AND mr.collection_date BETWEEN $2 AND $3
          ORDER BY mr.collection_date DESC, mr.created_at DESC NULLS LAST`,
         [userId, start, end]
       );
       return rows;
     }, []);
-
-    // Shop stock for sales staff
-    const shopId = req.user.shop_id;
-    let shop_stock = 0;
-    if (shopId) {
-      const stockRow = await safeQuery(
-        () => db.queryOne(
-          `SELECT GREATEST(0,
-             COALESCE((SELECT SUM(quantity_liters) FROM milk_records WHERE shop_id=$1),0)
-           - COALESCE((SELECT SUM(milk_qty) FROM receipts WHERE shop_id=$1 AND milk_qty>0),0)
-           ) AS available`,
-          [shopId]
-        ),
-        { available: 0 }
-      );
-      shop_stock = parseFloat(stockRow?.available || 0);
-    }
 
     res.json({
       success: true,
@@ -257,7 +220,6 @@ staffDashRouter.get('/', async (req, res, next) => {
           avg_fat:      parseFloat(kpi?.avg_fat      || 0),
           entries:      parseInt(kpi?.entries        || 0),
         },
-        shop_stock,
         details: details || [],
       },
     });

@@ -29,7 +29,6 @@ export default function SalesLayout() {
 
   const NAV = [
     { to: '/sales',         icon: LayoutDashboard, label: 'Dashboard', end: true },
-    { to: '/sales/entry',   icon: ShoppingBag,     label: 'Sale',      end: true },
     { to: '/sales/history', icon: History,         label: 'History',   end: true },
   ];
 

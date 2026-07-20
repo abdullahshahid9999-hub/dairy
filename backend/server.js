@@ -162,11 +162,8 @@ app.get('/api/setup', require('./src/middleware/auth').authenticate, require('./
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB        DEFAULT '[]'::jsonb`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS shop_id     BIGINT       REFERENCES shops(id) ON DELETE SET NULL`,
     `ALTER TABLE employees ADD COLUMN IF NOT EXISTS shop_id BIGINT REFERENCES shops(id) ON DELETE SET NULL`,
-    `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS shop_id BIGINT REFERENCES shops(id) ON DELETE SET NULL`,
-    `ALTER TABLE receipts ADD COLUMN IF NOT EXISTS shop_id  BIGINT REFERENCES shops(id) ON DELETE SET NULL`,
     `CREATE INDEX IF NOT EXISTS idx_employees_shop ON employees(shop_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_receipts_shop  ON receipts(shop_id)`,
-  ];
+    ];
   const results = [];
   for (const sql of steps) {
     try { await pool.query(sql); results.push({ ok: true, sql: sql.slice(0, 70) }); }
@@ -196,19 +193,15 @@ async function runAutoMigration() {
     // employees table
     `ALTER TABLE employees ADD COLUMN IF NOT EXISTS shop_id BIGINT REFERENCES shops(id) ON DELETE SET NULL`,
     // milk_records
-    `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS shop_id            BIGINT REFERENCES shops(id) ON DELETE SET NULL`,
-    `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS collection_time    TIME`,
+      `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS collection_time    TIME`,
     `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS lactometer_reading NUMERIC(6,2)`,
     `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS snf_computed       NUMERIC(6,4)`,
     `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS sp_gravity         NUMERIC(8,6)`,
     `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS standardised_ts    NUMERIC(8,4)`,
     `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS ts_value           NUMERIC(8,4)`,
     // receipts
-    `ALTER TABLE receipts ADD COLUMN IF NOT EXISTS shop_id BIGINT REFERENCES shops(id) ON DELETE SET NULL`,
-    // indexes (safe to re-run)
+      // indexes (safe to re-run)
     `CREATE INDEX IF NOT EXISTS idx_employees_shop  ON employees(shop_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_milk_shop       ON milk_records(shop_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_receipts_shop   ON receipts(shop_id)`,
     // Ensure HR tables exist (PostgreSQL syntax)
     `CREATE TABLE IF NOT EXISTS advance_salary (
       id           BIGSERIAL PRIMARY KEY,
@@ -264,8 +257,7 @@ async function runAutoMigration() {
       paid_amount      NUMERIC(10,2) DEFAULT 0,
       status           VARCHAR(20) DEFAULT 'paid',
       notes            TEXT,
-      shop_id          BIGINT REFERENCES shops(id) ON DELETE SET NULL,
-      created_by       BIGINT REFERENCES users(id) ON DELETE SET NULL,
+        created_by       BIGINT REFERENCES users(id) ON DELETE SET NULL,
       created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,
     `CREATE TABLE IF NOT EXISTS invoices (

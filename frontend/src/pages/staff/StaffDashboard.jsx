@@ -174,12 +174,6 @@ export default function StaffDashboard() {
                         {r.lactometer_reading ? ` · LR ${parseFloat(r.lactometer_reading).toFixed(1)}` : ''}
                         {r.snf_computed ? ` · SNF ${parseFloat(r.snf_computed).toFixed(2)}%` : ''}
                       </p>
-                      {/* Shop drop */}
-                      {r.shop_name && (
-                        <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                          <Store size={10}/> Dropped to: <strong className="text-slate-600">{r.shop_name}</strong>
-                        </p>
-                      )}
                     </div>
                     <div className="text-right ml-3 flex-shrink-0">
                       {r.ts_value ? (

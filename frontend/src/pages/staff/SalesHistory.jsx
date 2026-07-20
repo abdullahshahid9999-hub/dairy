@@ -16,7 +16,6 @@ export default function SalesHistory() {
   const load = () => {
     setLoading(true);
     const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo, limit: 200 });
-    if (user?.shop_id) params.append('shop_id', user.shop_id);
     api.get(`/customers/receipts?${params}`)
       .then(r => setRecords(r.data.data || []))
       .catch(() => setRecords([]))

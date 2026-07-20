@@ -34,7 +34,7 @@ const rules = [
 // ── GET list ─────────────────────────────────────────────────────────────────
 router.get('/', async (req, res, next) => {
   try {
-    const { farmer_id, shop_id, date_from, date_to, page = 1, limit = 100 } = req.query;
+    const { farmer_id, date_from, date_to, page = 1, limit = 100 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const params = [];
     let pi = 1;
@@ -42,18 +42,15 @@ router.get('/', async (req, res, next) => {
 
     if (isPurchase(req.user)) { conds.push(`mr.recorded_by = $${pi++}`); params.push(req.user.id); }
     if (farmer_id) { conds.push(`mr.farmer_id = $${pi++}`); params.push(farmer_id); }
-    if (shop_id)   { conds.push(`mr.shop_id = $${pi++}`);   params.push(shop_id); }
     if (date_from) { conds.push(`mr.collection_date >= $${pi++}`); params.push(date_from); }
     if (date_to)   { conds.push(`mr.collection_date <= $${pi++}`); params.push(date_to); }
 
     const migrated = await isMigrated();
     const extraCols = migrated
       ? `mr.lactometer_reading, mr.ts_value, mr.standardised_ts,
-         mr.snf_computed, mr.sp_gravity, mr.computed_rate, mr.collection_time,
-         mr.shop_id,`
+         mr.snf_computed, mr.sp_gravity, mr.computed_rate, mr.collection_time,`
       : `NULL AS lactometer_reading, NULL AS ts_value, NULL AS standardised_ts,
-         NULL AS snf_computed, NULL AS sp_gravity, mr.computed_rate, NULL AS collection_time,
-         NULL AS shop_id,`;
+         NULL AS snf_computed, NULL AS sp_gravity, mr.computed_rate, NULL AS collection_time,`;
 
     const where = conds.join(' AND ');
     const [rows] = await db.query(
@@ -64,11 +61,9 @@ router.get('/', async (req, res, next) => {
               f.name AS farmer_name,
               COALESCE(f.centre_name, f.name) AS centre_name,
               f.farmer_code,
-              s.shop_name,
               u.name AS recorded_by_name
        FROM milk_records mr
        JOIN farmers f ON f.id = mr.farmer_id
-       LEFT JOIN shops s ON s.id = mr.shop_id
        LEFT JOIN users u ON u.id = mr.recorded_by
        WHERE ${where}
        ORDER BY mr.collection_date DESC, mr.created_at DESC
@@ -116,13 +111,8 @@ router.post('/', async (req, res, next) => {
   try {
     const {
       farmer_id, collection_date, quantity_liters, fat_percentage,
-      lactometer_reading, snf_percentage, shop_id: bodyShopId, notes, target_ts
+      lactometer_reading, snf_percentage, notes, target_ts
     } = req.body;
-
-    // Staff always get their assigned shop — admin can specify manually
-    const shop_id = req.user.role === 'admin'
-      ? (bodyShopId || null)
-      : (req.user.shop_id || bodyShopId || null);
 
     // Manual validation — no express-validator (old JS sends shift which was breaking)
     const fid = parseInt(farmer_id, 10);
@@ -167,13 +157,13 @@ router.post('/', async (req, res, next) => {
         `INSERT INTO milk_records
            (farmer_id, collection_date, collection_time, quantity_liters, fat_percentage,
             snf_percentage, lactometer_reading, ts_value, standardised_ts, snf_computed,
-            sp_gravity, computed_rate, total_amount, shop_id, notes, recorded_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+            sp_gravity, computed_rate, total_amount, notes, recorded_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          RETURNING id`,
         [fid, cd, collection_time, qty,
          fat, snf_percentage ? parseFloat(snf_percentage) : null,
          lr, ts, standardised_ts, snf_computed,
-         sp_gravity, rate_per_unit, total_payout, shop_id || null, notes || null, req.user.id]
+         sp_gravity, rate_per_unit, total_payout, notes || null, req.user.id]
       );
       insertedId = result.id;
     } else {
@@ -215,7 +205,7 @@ router.put('/:id', adminOnly, async (req, res, next) => {
   try {
     const {
       farmer_id, collection_date, quantity_liters, fat_percentage,
-      lactometer_reading, snf_percentage, shop_id, notes, target_ts
+      lactometer_reading, snf_percentage, notes, target_ts
     } = req.body;
 
     let cfg = {};
@@ -234,11 +224,11 @@ router.put('/:id', adminOnly, async (req, res, next) => {
            farmer_id=$1, collection_date=$2, quantity_liters=$3, fat_percentage=$4,
            snf_percentage=$5, lactometer_reading=$6, ts_value=$7, standardised_ts=$8,
            snf_computed=$9, sp_gravity=$10, computed_rate=$11, total_amount=$12,
-           shop_id=$13, notes=$14
-         WHERE id=$15`,
+           notes=$13
+         WHERE id=$14`,
         [farmer_id, collection_date, parseFloat(quantity_liters), parseFloat(fat_percentage),
          snf_percentage || null, lr, ts, standardised_ts, snf_computed,
-         sp_gravity, rate_per_unit, total_payout, shop_id || null, notes || null, req.params.id]
+         sp_gravity, rate_per_unit, total_payout, notes || null, req.params.id]
       );
     } else {
       await db.query(

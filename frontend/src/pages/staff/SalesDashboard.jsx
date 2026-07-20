@@ -53,14 +53,12 @@ export default function SalesDashboard() {
       else if (t === 'custom' && df && dt){ start = df; end = dt; }
 
       const params = new URLSearchParams({ date_from: start, date_to: end });
-      // Filter by shop if staff has one assigned
-      if (user?.shop_id) params.append('shop_id', user.shop_id);
 
       const { data: r } = await api.get(`/customers/sales-summary?${params}`);
       setData(r.data || null);
     } catch { setData(null); }
     finally { setSpinning(false); setLoading(false); }
-  }, [tenure, dateFrom, dateTo, user?.shop_id]);
+  }, [tenure, dateFrom, dateTo]);
 
   useEffect(() => { load(tenure, dateFrom, dateTo); }, [tenure]);
 
@@ -138,10 +136,6 @@ export default function SalesDashboard() {
             value={fmt(data?.received || 0)}
             sub="paid amount"
             color={{ bg:'bg-violet-50', icon:'text-violet-500', val:'text-violet-700' }}/>
-          <KPITile icon={TrendingUp} label="Shop Stock"
-            value={fmtL(data?.shop_stock || 0)}
-            sub="available"
-            color={{ bg:'bg-amber-50', icon:'text-amber-500', val:'text-amber-700' }}/>
         </div>
       )}
     </div>

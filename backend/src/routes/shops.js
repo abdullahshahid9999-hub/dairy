@@ -52,20 +52,6 @@ router.put('/:id', adminOnly, async (req, res, next) => {
   } catch(err){next(err);}
 });
 
-// GET shop available milk stock
-router.get('/:id/stock', async (req, res, next) => {
-  try {
-    const row = await db.queryOne(
-      `SELECT GREATEST(0,
-         COALESCE((SELECT SUM(quantity_liters) FROM milk_records WHERE shop_id=$1),0)
-       - COALESCE((SELECT SUM(milk_qty) FROM receipts WHERE shop_id=$1 AND milk_qty > 0),0)
-       ) AS available`,
-      [req.params.id]
-    );
-    res.json({ success:true, available: parseFloat(row?.available || 0) });
-  } catch(err){next(err);}
-});
-
 router.patch('/:id/rent', adminOnly, async (req, res, next) => {
   try {
     const { paid_for, paid_date, amount } = req.body;

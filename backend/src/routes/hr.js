@@ -13,10 +13,7 @@ router.post('/migrate', authenticate, adminOnly, async (req, res) => {
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB        DEFAULT '[]'::jsonb`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS shop_id     BIGINT       REFERENCES shops(id) ON DELETE SET NULL`,
     `ALTER TABLE employees ADD COLUMN IF NOT EXISTS shop_id BIGINT REFERENCES shops(id) ON DELETE SET NULL`,
-    `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS shop_id BIGINT REFERENCES shops(id) ON DELETE SET NULL`,
-    `ALTER TABLE receipts ADD COLUMN IF NOT EXISTS shop_id  BIGINT REFERENCES shops(id) ON DELETE SET NULL`,
     `CREATE INDEX IF NOT EXISTS idx_employees_shop ON employees(shop_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_receipts_shop  ON receipts(shop_id)`,
   ];
   const results = [];
   for (const sql of steps) {

@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Milk, Calculator, RefreshCw, AlertCircle, ChevronDown, Clock, Store } from 'lucide-react';
+import { Milk, Calculator, RefreshCw, AlertCircle, ChevronDown, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import api from '../../api/client';
-import useAuthStore from '../../store/authStore';
 
 const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 
@@ -14,7 +13,6 @@ const emptyForm = () => ({
   fat_percentage:     '',
   lactometer_reading: '',
   target_ts:          '13',
-  shop_id:            '',
   notes:              '',
 });
 
@@ -24,7 +22,7 @@ function ResultCard({ result, onClose }) {
     <div className="rounded-2xl border border-slate-200 bg-white shadow-lg overflow-hidden">
       <div className="bg-gradient-to-r from-[#0d2137] to-[#1d6faa] px-4 py-3 text-center">
         <p className="text-white font-bold text-base tracking-wide">Collection Saved ✓</p>
-        <p className="text-blue-200 text-xs mt-0.5">{result.centre} → {result.shop || 'No shop'}</p>
+        <p className="text-blue-200 text-xs mt-0.5">{result.centre}</p>
       </div>
       <div className="px-5 py-4 grid grid-cols-2 gap-3">
         {[
@@ -52,11 +50,8 @@ function ResultCard({ result, onClose }) {
 }
 
 export default function MilkEntry() {
-  const { user } = useAuthStore();
-  const isAdmin = user?.role === 'admin';
 
   const [centres,  setCentres]  = useState([]);
-  const [shops,    setShops]    = useState([]);
   const [form,     setForm]     = useState(emptyForm());
   const [preview,  setPreview]  = useState(null);
   const [prevLoad, setPrevLoad] = useState(false);
@@ -67,11 +62,6 @@ export default function MilkEntry() {
 
   useEffect(() => {
     api.get('/farmers?limit=200&active=1').then(r => setCentres(r.data.data || []));
-    if (isAdmin) api.get('/shops?limit=100').then(r => setShops(r.data.data || []));
-    // Auto-set staff's assigned shop
-    if (!isAdmin && user?.shop_id) {
-      setForm(p => ({ ...p, shop_id: String(user.shop_id) }));
-    }
   }, []);
 
   const set = key => e => setForm(p => ({ ...p, [key]: e.target.value }));
@@ -118,12 +108,10 @@ export default function MilkEntry() {
         fat_percentage:     parseFloat(form.fat_percentage),
         lactometer_reading: form.lactometer_reading ? parseFloat(form.lactometer_reading) : undefined,
         target_ts:          parseFloat(form.target_ts) || 13,
-        shop_id:            form.shop_id ? parseInt(form.shop_id, 10) : undefined,
         notes:              form.notes || undefined,
       });
       const data = r.data.data || {};
       const centre = centres.find(c => String(c.id) === String(form.farmer_id));
-      const shop   = shops.find(s => String(s.id) === String(form.shop_id));
 
       const fat    = parseFloat(form.fat_percentage);
       const lr     = parseFloat(form.lactometer_reading);
@@ -140,7 +128,6 @@ export default function MilkEntry() {
 
       setResult({
         centre:          centre?.centre_name || centre?.name || '',
-        shop:            shop?.shop_name || '',
         snf:             snf.toFixed(3),
         ts:              ts.toFixed(3),
         standardised_ts: std_qty.toFixed(3),
@@ -281,28 +268,6 @@ export default function MilkEntry() {
           <input type="number" inputMode="decimal" step="0.01" placeholder="13"
             value={form.target_ts} onChange={set('target_ts')}
             className={`${inputBase} py-3 text-base font-mono text-center text-slate-600 border-slate-200`}/>
-        </div>
-
-        {/* Drop to Shop */}
-        <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-            <Store size={12} className="inline mr-1"/>Shop
-          </label>
-          {isAdmin ? (
-            <div className="relative">
-              <select value={form.shop_id} onChange={set('shop_id')}
-                className={`${inputBase} py-3.5 text-sm appearance-none pr-10 bg-white border-slate-200`}>
-                <option value="">Select shop…</option>
-                {shops.map(s => <option key={s.id} value={s.id}>{s.shop_name}</option>)}
-              </select>
-              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
-            </div>
-          ) : (
-            <div className={`${inputBase} py-3.5 text-sm bg-slate-50 border-slate-200 flex items-center gap-2 text-slate-600`}>
-              <Store size={14} className="text-emerald-500"/>
-              {user?.shop_name || 'No shop assigned'}
-            </div>
-          )}
         </div>
 
         {/* Notes */}
