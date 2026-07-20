@@ -109,24 +109,27 @@ router.post('/', adminOnly, rules, validate, async (req, res, next) => {
     const hasCentre = await hasCentreCol();
     let sql, params;
 
+    const seq = await db.queryOne('SELECT COALESCE(MAX(id),0) AS m FROM farmers');
+    const farmer_code = `FRM-${String(Number(seq?.m || 0) + 1).padStart(5, '0')}`;
+
     if (hasCentre) {
       sql = `INSERT INTO farmers
-               (name, phone, address, base_rate, ideal_fat, ideal_snf,
+               (farmer_code, name, phone, address, base_rate, ideal_fat, ideal_snf,
                 fat_correction, snf_correction, bank_name, bank_account,
                 centre_name, supplier_rate)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
              RETURNING *`;
-      params = [name, phone, address, parseFloat(base_rate),
+      params = [farmer_code, name, phone, address, parseFloat(base_rate),
         parseFloat(ideal_fat||0), parseFloat(ideal_snf||0),
         parseFloat(fat_correction||0), parseFloat(snf_correction||0),
         bank_name, bank_account, centre_name || name, supplier_rate];
     } else {
       sql = `INSERT INTO farmers
-               (name, phone, address, base_rate, ideal_fat, ideal_snf,
+               (farmer_code, name, phone, address, base_rate, ideal_fat, ideal_snf,
                 fat_correction, snf_correction, bank_name, bank_account)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
              RETURNING *`;
-      params = [name, phone, address, parseFloat(base_rate),
+      params = [farmer_code, name, phone, address, parseFloat(base_rate),
         parseFloat(ideal_fat||0), parseFloat(ideal_snf||0),
         parseFloat(fat_correction||0), parseFloat(snf_correction||0),
         bank_name, bank_account];
