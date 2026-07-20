@@ -148,11 +148,6 @@ export default function MilkHistory() {
                       <span>· SNF <strong className="font-mono text-emerald-600">{parseFloat(r.snf_computed).toFixed(3)}</strong></span>
                     )}
                   </div>
-                  {r.shop_name && (
-                    <p className="flex items-center gap-1 text-xs text-slate-400 mt-1.5">
-                      <Store size={10}/> Dropped to: <strong className="text-slate-600">{r.shop_name}</strong>
-                    </p>
-                  )}
                 </div>
                 <div className="text-right ml-3 flex-shrink-0">
                   {r.ts_value && (

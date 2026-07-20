@@ -23,7 +23,7 @@ const emptyForm = () => ({
   farmer_id: '', collection_date: today(),
   quantity_liters: '', fat_percentage: '',
   lactometer_reading: '', target_ts: '13',
-  shop_id: '', notes: '',
+  notes: '',
 });
 
 // ── Beautiful Input ──────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ function Field({ label, required, error, children }) {
 }
 
 // ── Add/Edit Modal ───────────────────────────────────────────────────────────
-function MilkModal({ isOpen, onClose, farmers, shops, onSaved }) {
+function MilkModal({ isOpen, onClose, farmers, onSaved }) {
   const [form, setForm]       = useState(emptyForm());
   const [preview, setPreview] = useState(null);
   const [prevLoad, setPrevLoad] = useState(false);
@@ -94,7 +94,6 @@ function MilkModal({ isOpen, onClose, farmers, shops, onSaved }) {
         fat_percentage:     parseFloat(form.fat_percentage),
         lactometer_reading: form.lactometer_reading ? parseFloat(form.lactometer_reading) : undefined,
         target_ts:          parseFloat(form.target_ts) || 13,
-        shop_id:            form.shop_id ? parseInt(form.shop_id, 10) : undefined,
         notes:              form.notes || undefined,
       });
       toast.success('Record saved');
@@ -163,22 +162,11 @@ function MilkModal({ isOpen, onClose, farmers, shops, onSaved }) {
             )}
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            {/* Date */}
-            <Field label="Date" required>
-              <input type="date" value={form.collection_date} onChange={set('collection_date')}
-                className={`${inputBase} ${inputOk}`}/>
-            </Field>
-
-            {/* Deliver to Shop */}
-            <Field label="Deliver to Shop">
-              <select value={form.shop_id} onChange={set('shop_id')}
-                className={`${inputBase} ${inputOk} appearance-none`}>
-                <option value="">Select shop…</option>
-                {shops.map(s => <option key={s.id} value={s.id}>{s.shop_name}</option>)}
-              </select>
-            </Field>
-          </div>
+          {/* Date */}
+          <Field label="Date" required>
+            <input type="date" value={form.collection_date} onChange={set('collection_date')}
+              className={`${inputBase} ${inputOk}`}/>
+          </Field>
 
           {/* Qty */}
           <Field label="Milk Quantity (L/KG)" required error={errors.quantity_liters}>
@@ -282,7 +270,6 @@ function MilkModal({ isOpen, onClose, farmers, shops, onSaved }) {
 export default function MilkAdmin() {
   const [records,  setRecords]  = useState([]);
   const [farmers,  setFarmers]  = useState([]);
-  const [shops,    setShops]    = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [modal,    setModal]    = useState(false);
   const [filters,  setFilters]  = useState({ farmer_id:'', date_from:'', date_to:'' });
@@ -304,7 +291,6 @@ export default function MilkAdmin() {
 
   useEffect(() => {
     api.get('/farmers?active=1&limit=200').then(r => setFarmers(r.data.data||[]));
-    api.get('/shops?limit=100').then(r => setShops(r.data.data||[]));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -395,7 +381,7 @@ export default function MilkAdmin() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/80">
-                {['Date & Time','Supplier','Qty','FAT%','LR','TS','Std TS','Shop','SNF','Rate/L','Amount'].map(h => (
+                {['Date & Time','Supplier','Qty','FAT%','LR','TS','Std TS','SNF','Rate/L','Amount'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
                 <th className="px-4 py-3"/>
@@ -439,11 +425,6 @@ export default function MilkAdmin() {
                   <td className="px-4 py-3 font-mono text-violet-600">{r.lactometer_reading ? parseFloat(r.lactometer_reading).toFixed(1) : '—'}</td>
                   <td className="px-4 py-3 font-mono text-blue-700">{r.ts_value ? parseFloat(r.ts_value).toFixed(3) : '—'}</td>
                   <td className="px-4 py-3 font-mono text-violet-700">{r.standardised_ts ? parseFloat(r.standardised_ts).toFixed(3) : '—'}</td>
-                  <td className="px-4 py-3">
-                    {r.shop_name
-                      ? <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-medium">{r.shop_name}</span>
-                      : <span className="text-slate-300 text-xs">—</span>}
-                  </td>
                   <td className="px-4 py-3 font-mono text-emerald-600">{r.snf_computed ? parseFloat(r.snf_computed).toFixed(3) : '—'}</td>
                   <td className="px-4 py-3 font-mono text-slate-600">{r.computed_rate ? `Rs ${parseFloat(r.computed_rate).toFixed(2)}` : '—'}</td>
                   <td className="px-4 py-3 font-mono font-bold text-emerald-700">{fmt(r.total_amount)}</td>
@@ -465,7 +446,6 @@ export default function MilkAdmin() {
         isOpen={modal}
         onClose={() => setModal(false)}
         farmers={farmers}
-        shops={shops}
         onSaved={load}
       />
     </div>
