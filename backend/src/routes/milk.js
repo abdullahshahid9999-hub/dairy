@@ -86,12 +86,16 @@ router.get('/', async (req, res, next) => {
 // ── POST preview-rate ─────────────────────────────────────────────────────────
 router.post('/preview-rate', async (req, res, next) => {
   try {
-    const { fat_percentage, lactometer_reading, quantity_liters, target_ts } = req.body;
+    const { farmer_id, fat_percentage, lactometer_reading, quantity_liters, target_ts } = req.body;
     if (!fat_percentage || !lactometer_reading || !quantity_liters)
       return res.status(400).json({ success: false, message: 'fat_percentage, lactometer_reading, quantity_liters required.' });
 
     let cfg = {};
     try { cfg = await getPricingConfig(); } catch {}
+    if (farmer_id) {
+      const farmer = await db.queryOne('SELECT base_rate FROM farmers WHERE id = $1', [farmer_id]).catch(() => null);
+      if (farmer?.base_rate != null) cfg.base_rate = parseFloat(farmer.base_rate);
+    }
     if (target_ts && parseFloat(target_ts) > 0) cfg.target_ts = parseFloat(target_ts);
 
     const result = computeTS({
@@ -129,9 +133,9 @@ router.post('/', async (req, res, next) => {
     }
     const cd = collection_date || new Date().toISOString().slice(0, 10);
 
-    // Needed for the WhatsApp notification — fetch once, fail-safe
+    // Needed for the WhatsApp notification and pricing — fetch once, fail-safe
     const farmer = await db.queryOne(
-      `SELECT name, phone FROM farmers WHERE id = $1`, [fid]
+      `SELECT name, phone, base_rate FROM farmers WHERE id = $1`, [fid]
     ).catch(() => null);
     if (!farmer) {
       return res.status(404).json({ success: false, message: 'Supplier not found.' });
@@ -139,6 +143,7 @@ router.post('/', async (req, res, next) => {
 
     let cfg = {};
     try { cfg = await getPricingConfig(); } catch {}
+    if (farmer.base_rate != null) cfg.base_rate = parseFloat(farmer.base_rate);
     if (target_ts && parseFloat(target_ts) > 0) cfg.target_ts = parseFloat(target_ts);
 
     const lr = lactometer_reading ? parseFloat(lactometer_reading) : 0;
@@ -210,6 +215,10 @@ router.put('/:id', adminOnly, async (req, res, next) => {
 
     let cfg = {};
     try { cfg = await getPricingConfig(); } catch {}
+    if (farmer_id) {
+      const farmer = await db.queryOne('SELECT base_rate FROM farmers WHERE id = $1', [farmer_id]).catch(() => null);
+      if (farmer?.base_rate != null) cfg.base_rate = parseFloat(farmer.base_rate);
+    }
     if (target_ts && parseFloat(target_ts) > 0) cfg.target_ts = parseFloat(target_ts);
 
     const lr = lactometer_reading ? parseFloat(lactometer_reading) : 0;

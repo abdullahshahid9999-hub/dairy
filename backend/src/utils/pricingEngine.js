@@ -32,7 +32,7 @@ async function getPricingConfig() {
   const cfg = {};
   try {
     const [rows] = await db.query(
-      `SELECT key, value FROM settings WHERE key = ANY(?)`,
+      `SELECT key, value FROM settings WHERE key = ANY($1)`,
       [keys]
     );
     rows.forEach(r => { cfg[r.key] = r.value; });

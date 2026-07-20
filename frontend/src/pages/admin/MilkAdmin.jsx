@@ -54,12 +54,13 @@ function MilkModal({ isOpen, onClose, farmers, onSaved }) {
 
   // live preview
   useEffect(() => {
-    const { fat_percentage: fat, lactometer_reading: lr, quantity_liters: qty } = form;
-    if (!fat || !lr || !qty || parseFloat(qty) <= 0) { setPreview(null); return; }
+    const { farmer_id, fat_percentage: fat, lactometer_reading: lr, quantity_liters: qty } = form;
+    if (!farmer_id || !fat || !lr || !qty || parseFloat(qty) <= 0) { setPreview(null); return; }
     clearTimeout(debounce.current);
     debounce.current = setTimeout(() => {
       setPrevLoad(true);
       api.post('/milk/preview-rate', {
+        farmer_id: parseInt(farmer_id, 10),
         fat_percentage: parseFloat(fat),
         lactometer_reading: parseFloat(lr),
         quantity_liters: parseFloat(qty),
@@ -70,7 +71,7 @@ function MilkModal({ isOpen, onClose, farmers, onSaved }) {
         .finally(() => setPrevLoad(false));
     }, 500);
     return () => clearTimeout(debounce.current);
-  }, [form.fat_percentage, form.lactometer_reading, form.quantity_liters, form.target_ts]);
+  }, [form.farmer_id, form.fat_percentage, form.lactometer_reading, form.quantity_liters, form.target_ts]);
 
   const validate = () => {
     const e = {};

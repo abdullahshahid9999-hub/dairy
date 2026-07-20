@@ -117,6 +117,13 @@ const steps = [
     recorded_by  BIGINT REFERENCES users(id) ON DELETE SET NULL,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
+  `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS fat_percentage   NUMERIC(6,3)`,
+  `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS lr               NUMERIC(6,3)`,
+  `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS ts               NUMERIC(10,4)`,
+  `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS snf_computed     NUMERIC(6,3)`,
+  `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS sp_gravity       NUMERIC(6,4)`,
+  `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS milk_kg          NUMERIC(10,3)`,
+  `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS standardised_ts  NUMERIC(10,4)`,
   `CREATE TABLE IF NOT EXISTS expense_categories (
     id   BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE
