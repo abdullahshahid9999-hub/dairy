@@ -8,11 +8,6 @@ const fmt = n => `Rs ${Number(n||0).toLocaleString('en-PK',{maximumFractionDigit
 const statusBadge = { unpaid:'badge-red', partial:'badge-yellow', paid:'badge-green', cancelled:'badge-gray' };
 const statusIcon  = { unpaid:<AlertCircle size={11}/>, partial:<Clock size={11}/>, paid:<CheckCircle size={11}/>, cancelled:<X size={11}/> };
 
-const CUSTOMER_CATS = [
-  { value:'',          label:'All Customers' },
-  { value:'bulk',      label:'Bulk' },
-];
-
 export default function Invoices() {
   const [invoices, setInvoices]   = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -33,7 +28,6 @@ export default function Invoices() {
     notes: '',
   };
   const [form, setForm]       = useState(emptyCreate);
-  const [custCat, setCustCat] = useState('');
 
   // Pay form
   const [payForm, setPayForm] = useState({
@@ -52,13 +46,8 @@ export default function Invoices() {
   };
   useEffect(()=>{ load(); },[]);
 
-  const filteredCustomers = custCat
-    ? customers.filter(c=>c.customer_type===custCat)
-    : customers;
-
   const onCustomerSelect = (id) => {
-    const c = customers.find(x=>String(x.id)===id);
-    setForm(p=>({...p, customer_id:id, customer_type: c?.customer_type||'bulk'}));
+    setForm(p=>({...p, customer_id:id}));
   };
 
   const onSubmit = async (e) => {
@@ -128,7 +117,7 @@ export default function Invoices() {
   return (
     <div className="space-y-5">
       <PageHeader title="Invoices" subtitle="Billing, payments and receivables"
-        action={<button onClick={()=>{ setForm(emptyCreate); setCustCat(''); setModal('create'); }} className="btn-primary"><Plus size={16}/>New Invoice</button>}/>
+        action={<button onClick={()=>{ setForm(emptyCreate); setModal('create'); }} className="btn-primary"><Plus size={16}/>New Invoice</button>}/>
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4">
@@ -156,10 +145,7 @@ export default function Invoices() {
                 : invoices.map(inv=>(
                   <tr key={inv.id} className="cursor-pointer" onClick={()=>openDetail(inv)}>
                     <td><span className="font-mono text-xs text-[#1d6faa] font-semibold">{inv.invoice_no}</span></td>
-                    <td>
-                      <div className="font-medium text-sm">{inv.cname||inv.customer_name||'Walk-in'}</div>
-                      <div className="text-xs text-slate-400">{inv.customer_type}</div>
-                    </td>
+                    <td><div className="font-medium text-sm">{inv.cname||inv.customer_name||'—'}</div></td>
                     <td className="text-xs text-slate-500">{inv.invoice_date}</td>
                     <td className="font-mono font-semibold">{fmt(inv.total_amount)}</td>
                     <td className="font-mono text-emerald-600">{fmt(inv.paid_amount)}</td>
@@ -177,21 +163,12 @@ export default function Invoices() {
       <Modal isOpen={modal==='create'} onClose={()=>setModal(null)} title="New Invoice" size="sm">
         <form onSubmit={onSubmit} className="space-y-4">
 
-          {/* Step 1: Category filter then customer */}
+          {/* Customer */}
           <div>
-            <label className="label">Customer Category</label>
-            <div className="flex gap-2 flex-wrap mb-2">
-              {CUSTOMER_CATS.map(({value,label})=>(
-                <button key={value} type="button" onClick={()=>{ setCustCat(value); setForm(p=>({...p,customer_id:'',customer_type:value||'bulk'})); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition
-                    ${custCat===value?'bg-[#1d6faa] text-white border-[#1d6faa]':'border-slate-200 text-slate-500 hover:border-[#1d6faa]'}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
+            <label className="label">Customer *</label>
             <select className="input" value={form.customer_id} onChange={e=>onCustomerSelect(e.target.value)} required>
               <option value="">Select customer…</option>
-              {filteredCustomers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+              {customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
 
