@@ -1,15 +1,13 @@
 /**
  * Brimi Dairy Pricing Engine
  *
- * Formulas:
- *   SP Gravity      = (LR / 1000) + 1
- *   SNF%            = (LR / 4) + (0.21 × Fat%) + 0.36
- *   TS%             = Fat% + SNF%
- *   Weight (kg)     = Liters × SP Gravity
- *   Dry Solids Wt   = Weight_kg × (TS% / 100)
- *   Std Qty         = Weight_kg × (TS% / Std_TS%)
- *   Purchase Rate   = Std_TS% × base_rate
- *   Total Payout    = Purchase_Rate × Weight_kg
+ * Formulas (verified against confirmed reference figures):
+ *   SP Gravity          = (LR / 1000) + 1
+ *   SNF%                = (LR / 4) + (0.22 × Fat%) + 0.72
+ *   TS%                 = Fat% + SNF%
+ *   Milk Weight (kg)    = Liters × SP Gravity
+ *   TS Milk Quantity    = Liters × (TS% / Std_TS%)   ← standardized volume, in liters
+ *   Total Payout        = TS Milk Quantity × base_rate
  */
 
 const db = require('../config/db');
@@ -75,25 +73,25 @@ function computeTS({ cfg = {}, fat, lr, weight }) {
   const sp_gravity = (l / 1000) + 1;
 
   // 2. SNF%
-  const snf_computed = (l / 4) + (0.21 * f) + 0.36;
+  const snf_computed = (l / 4) + (0.22 * f) + 0.72;
 
   // 3. TS%
   const ts = f + snf_computed;
 
-  // 4. Weight in kg
+  // 4. Weight in kg (informational)
   const milk_kg = w * sp_gravity;
 
-  // 5. Dry Solids Weight
+  // 5. Dry Solids Weight (informational)
   const dry_solids = milk_kg * (ts / 100);
 
-  // 6. Standardized Qty = milk_kg × (TS% / Std_TS%)
-  const standardised_ts = milk_kg * (ts / ts_t);
+  // 6. TS Milk Quantity — standardized volume, based on liters (not kg)
+  const standardised_ts = w * (ts / ts_t);
 
-  // 7. Purchase Rate = Std_TS × base_rate
-  const rate_per_unit = standardised_ts * brate;
+  // 7. Purchase Rate = farmer's own base_rate (per standardized liter)
+  const rate_per_unit = brate;
 
-  // 8. Total Payout = Purchase_Rate × milk_kg
-  const total_payout = rate_per_unit * milk_kg;
+  // 8. Total Payout = TS Milk Quantity × base_rate
+  const total_payout = standardised_ts * brate;
 
   return {
     ts:              parseFloat(ts.toFixed(4)),

@@ -121,10 +121,10 @@ export default function MilkEntry() {
 
       // Formulas (fallback if backend didn't return values)
       const sp_gravity   = data.sp_gravity    || (lr / 1000) + 1;
-      const snf          = data.snf_computed  || (lr / 4) + (0.21 * fat) + 0.36;
+      const snf          = data.snf_computed  || (lr / 4) + (0.22 * fat) + 0.72;
       const ts           = data.ts            || (fat + snf);
       const milk_kg      = litres * sp_gravity;
-      const std_qty      = data.standardised_ts || (milk_kg * (ts / ts_std));
+      const std_qty      = data.standardised_ts || (litres * (ts / ts_std));
       const dry_solids   = data.dry_solids    || (milk_kg * (ts / 100));
 
       setResult({
@@ -296,7 +296,7 @@ export default function MilkEntry() {
                   { l:'Sp. Gravity',    v: preview.sp_gravity      != null ? Number(preview.sp_gravity).toFixed(4)      : '—', c:'text-slate-600' },
                   { l:'Milk (kg)',      v: preview.milk_kg         != null ? Number(preview.milk_kg).toFixed(3)         : '—', c:'text-orange-600' },
                   { l:'Dry Solids kg',  v: preview.dry_solids      != null ? Number(preview.dry_solids).toFixed(3)      : '—', c:'text-purple-700' },
-                  { l:'Std Qty (kg)',   v: preview.standardised_ts != null ? Number(preview.standardised_ts).toFixed(3) : '—', c:'text-violet-700' },
+                  { l:'Std Qty (L)',   v: preview.standardised_ts != null ? Number(preview.standardised_ts).toFixed(3) : '—', c:'text-violet-700' },
                 ].map(({ l, v, c }) => (
                   <div key={l} className="bg-white rounded-xl p-2.5 border border-blue-100 text-center">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{l}</p>
