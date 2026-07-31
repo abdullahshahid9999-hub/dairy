@@ -123,7 +123,6 @@ app.use('/api/milk',      require('./src/routes/milk'));
 app.use('/api/billing',   require('./src/routes/billing'));
 app.use('/api/sales',     require('./src/routes/sales'));
 
-app.use('/api/shops',     require('./src/routes/shops'));
 app.use('/api/hr',        require('./src/routes/hr'));
 app.use('/api/expenses',  require('./src/routes/expenses'));
 app.use('/api/reports',   require('./src/routes/reports'));
@@ -160,9 +159,6 @@ app.get('/api/setup', require('./src/middleware/auth').authenticate, require('./
   const steps = [
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS department  VARCHAR(50)  DEFAULT 'sales'`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB        DEFAULT '[]'::jsonb`,
-    `ALTER TABLE users ADD COLUMN IF NOT EXISTS shop_id     BIGINT       REFERENCES shops(id) ON DELETE SET NULL`,
-    `ALTER TABLE employees ADD COLUMN IF NOT EXISTS shop_id BIGINT REFERENCES shops(id) ON DELETE SET NULL`,
-    `CREATE INDEX IF NOT EXISTS idx_employees_shop ON employees(shop_id)`,
     ];
   const results = [];
   for (const sql of steps) {
@@ -189,9 +185,7 @@ async function runAutoMigration() {
     // users table
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS department  VARCHAR(50)  DEFAULT 'sales'`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB        DEFAULT '[]'::jsonb`,
-    `ALTER TABLE users ADD COLUMN IF NOT EXISTS shop_id     BIGINT       REFERENCES shops(id) ON DELETE SET NULL`,
     // employees table
-    `ALTER TABLE employees ADD COLUMN IF NOT EXISTS shop_id BIGINT REFERENCES shops(id) ON DELETE SET NULL`,
     // milk_records
       `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS collection_time    TIME`,
     `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS lactometer_reading NUMERIC(6,2)`,
@@ -201,7 +195,6 @@ async function runAutoMigration() {
     `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS ts_value           NUMERIC(8,4)`,
     // receipts
       // indexes (safe to re-run)
-    `CREATE INDEX IF NOT EXISTS idx_employees_shop  ON employees(shop_id)`,
     // Ensure HR tables exist (PostgreSQL syntax)
     `CREATE TABLE IF NOT EXISTS advance_salary (
       id           BIGSERIAL PRIMARY KEY,

@@ -18,11 +18,9 @@ async function authenticate(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     const user = await db.queryOne(
       `SELECT u.id,u.name,u.email,u.role,u.is_active,u.department,u.permissions,
-              e.id AS emp_id, COALESCE(e.shop_id, u.shop_id) AS shop_id,
-              s.shop_name
+              e.id AS emp_id
        FROM users u
        LEFT JOIN employees e ON e.user_id=u.id
-       LEFT JOIN shops s ON s.id = COALESCE(e.shop_id, u.shop_id)
        WHERE u.id=$1`,
       [payload.id]
     );

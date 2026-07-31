@@ -32,8 +32,6 @@ const safeUser = (u) => {
     id: u.id, name: u.name, email: u.email, role: u.role,
     avatar_url: u.avatar_url || null,
     department: u.department || null,
-    shop_id:    u.shop_id    || null,
-    shop_name:  u.shop_name  || null,
     perms,
   };
 };
@@ -66,12 +64,8 @@ router.post('/login',
       const { email, password, rememberMe = false } = req.body;
       const user = await db.queryOne(
         `SELECT u.id, u.name, u.email, u.password_hash, u.role, u.avatar_url, u.is_active,
-                u.email_verified, u.refresh_token_hash, u.department, u.permissions,
-                COALESCE(e.shop_id, u.shop_id) AS shop_id,
-                s.shop_name
+                u.email_verified, u.refresh_token_hash, u.department, u.permissions
          FROM users u
-         LEFT JOIN employees e ON e.user_id = u.id AND e.is_active = true
-         LEFT JOIN shops s ON s.id = COALESCE(e.shop_id, u.shop_id)
          WHERE u.email = $1`,
         [email]
       );
@@ -174,12 +168,8 @@ router.get('/me', async (req, res) => {
 
     const user = await db.queryOne(
       `SELECT u.id, u.name, u.email, u.role, u.avatar_url, u.email_verified, u.created_at,
-              u.department, u.permissions,
-              COALESCE(e.shop_id, u.shop_id) AS shop_id,
-              s.shop_name
+              u.department, u.permissions
        FROM users u
-       LEFT JOIN employees e ON e.user_id = u.id AND e.is_active = true
-       LEFT JOIN shops s ON s.id = COALESCE(e.shop_id, u.shop_id)
        WHERE u.id = $1 AND u.is_active = true`,
       [payload.id]
     );

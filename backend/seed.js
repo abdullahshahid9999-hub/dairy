@@ -109,14 +109,6 @@ async function seed() {
   `, [companyId]);
   console.log('✅ Sample company & contract created');
 
-  // ── Shop ──────────────────────────────────────────────────
-  await db.query(`
-    INSERT INTO shops (shop_name, location, ownership_type, owner_name, monthly_rent, created_by)
-    VALUES ('Main Collection Center', 'Chak 5, Faisalabad', 'rented', 'Haji Abdul Rehman', 15000.00, 1)
-    ON DUPLICATE KEY UPDATE location = VALUES(location)
-  `);
-  console.log('✅ Sample shop created');
-
   // ── Employee ──────────────────────────────────────────────
   const [[empExist]] = await db.query("SELECT id FROM employees WHERE emp_code = 'EMP-0001' LIMIT 1");
   if (!empExist) {

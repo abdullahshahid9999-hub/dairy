@@ -17,7 +17,6 @@ import Dashboard  from './pages/admin/Dashboard';
 import Farmers    from './pages/admin/Farmers';
 import MilkAdmin  from './pages/admin/MilkAdmin';
 import Billing    from './pages/admin/Billing';
-import Shops      from './pages/admin/Shops';
 import HRPayroll  from './pages/admin/HRPayroll';
 import Expenses   from './pages/admin/Expenses';
 import Reports    from './pages/admin/Reports';
@@ -93,7 +92,6 @@ export default function App() {
           <Route path="farmers"    element={<Farmers />} />
           <Route path="milk"       element={<MilkAdmin />} />
           <Route path="billing"    element={<Billing />} />
-          <Route path="shops"      element={<Shops />} />
           <Route path="hr"         element={<HRPayroll />} />
           <Route path="expenses"   element={<Expenses />} />
           <Route path="reports"    element={<Reports />} />

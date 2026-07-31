@@ -60,17 +60,6 @@ router.get('/pl', async (req, res, next) => {
       [periodStart, periodEnd]
     );
 
-    // Shop-wise sales (walk-in)
-    const [shopBreakdown] = await db.query(
-      `SELECT s.shop_name, SUM(ws.quantity_liters) AS liters, SUM(ws.total_amount) AS revenue,
-              COUNT(ws.id) AS transactions
-       FROM walkin_sales ws
-       JOIN shops s ON s.id = ws.shop_id
-       WHERE ws.sale_date BETWEEN $1 AND $2
-       GROUP BY s.id, s.shop_name ORDER BY revenue DESC`,
-      [periodStart, periodEnd]
-    ).catch(() => [[]]);
-
     res.json({
       success: true,
       data: {
@@ -92,7 +81,6 @@ router.get('/pl', async (req, res, next) => {
         expense_breakdown: expBreakdown,
         farmer_breakdown:  farmerBreakdown,
         sales_breakdown:   salesBreakdown,
-        shop_breakdown:    shopBreakdown,
       },
     });
   } catch (err) { next(err); }

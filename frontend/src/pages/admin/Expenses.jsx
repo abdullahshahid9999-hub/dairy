@@ -15,7 +15,6 @@ const CATEGORY_COLORS = {
 export default function Expenses() {
   const [expenses, setExpenses]     = useState([]);
   const [categories, setCategories] = useState([]);
-  const [rentRefs, setRentRefs]     = useState([]);
   const [loading, setLoading]       = useState(true);
   const [modal, setModal]           = useState(false);
   const [saving, setSaving]         = useState(false);
@@ -30,13 +29,7 @@ export default function Expenses() {
 
   const selectedCat  = categories.find(c=>String(c.id)===String(form.category_id));
   const catName      = selectedCat?.name?.toLowerCase()||'';
-  const isShopRent   = catName.includes('shop rent');
-  const isVehRent    = catName.includes('vehicle rent');
   const isDiesel     = catName.includes('diesel');
-  const isRent       = isShopRent || isVehRent;
-
-  const shopRefs    = rentRefs.filter(r=>r.type==='shop');
-  const vehicleRentRefs = rentRefs.filter(r=>r.type==='vehicle');
 
   const load = () => {
     setLoading(true);
@@ -44,28 +37,15 @@ export default function Expenses() {
     Promise.all([
       api.get(`/expenses?${q}&limit=200`),
       api.get('/expenses/categories'),
-      api.get('/expenses/rent-refs'),
-    ]).then(([e,c,r])=>{
+    ]).then(([e,c])=>{
       setExpenses(e.data.data||[]);
       setCategories(c.data.data||[]);
-      setRentRefs(r.data.data||[]);
     }).finally(()=>setLoading(false));
   };
   useEffect(()=>{ load(); },[]);
 
   const handleCatChange = (catId) => {
     setForm(p=>({ ...p, category_id:catId, reference_type:'', reference_id:'', description:'' }));
-  };
-
-  const handleRefChange = (refId) => {
-    const refs = isShopRent ? shopRefs : vehicleRentRefs;
-    const ref  = refs.find(r=>String(r.id)===refId);
-    setForm(p=>({
-      ...p, reference_id:refId,
-      reference_type: isShopRent?'shop':'vehicle',
-      amount: ref?.amount || p.amount,
-      description: ref ? `${isShopRent?'Shop':'Vehicle'} rent: ${ref.name}` : p.description,
-    }));
   };
 
   const onSubmit = async (e) => {
@@ -159,21 +139,6 @@ export default function Expenses() {
               <option value="">Select category…</option>
               {categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
             </select></div>
-
-          {isShopRent && (
-            <div><label className="label">Shop *</label>
-              <select value={form.reference_id} onChange={e=>handleRefChange(e.target.value)} className="input">
-                <option value="">Select shop…</option>
-                {shopRefs.map(s=><option key={s.id} value={s.id}>{s.name} — {fmt(s.amount)}/mo</option>)}
-              </select></div>
-          )}
-          {isVehRent && (
-            <div><label className="label">Rented Vehicle *</label>
-              <select value={form.reference_id} onChange={e=>handleRefChange(e.target.value)} className="input">
-                <option value="">Select vehicle…</option>
-                {vehicleRentRefs.map(v=><option key={v.id} value={v.id}>{v.name} — {fmt(v.amount)}/mo</option>)}
-              </select></div>
-          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div><label className="label">Date *</label>

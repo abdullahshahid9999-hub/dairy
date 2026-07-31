@@ -94,8 +94,7 @@ export default function Reports() {
     doc.text(
       section === 'all'     ? `Financial Report — ${periodLabel}`  :
       section === 'sales'   ? `Sales Report — ${periodLabel}`      :
-      section === 'purchase'? `Purchase Report — ${periodLabel}`   :
-                              `Shop-wise Report — ${periodLabel}`,
+      `Purchase Report — ${periodLabel}`,
       textX, 22
     );
     doc.setFontSize(8);
@@ -202,27 +201,6 @@ export default function Reports() {
       y = doc.lastAutoTable.finalY + 10;
     }
 
-    // ── Shop-wise sales ───────────────────────────────────────────────
-    if ((section === 'all' || section === 'shop') && data.shop_breakdown?.length) {
-      if (y > 220) { doc.addPage(); y = 20; }
-      doc.setFontSize(12); doc.setFont('helvetica','bold');
-      doc.text('Shop-wise Sales (Walk-in)', 14, y); y += 4;
-      autoTable(doc, {
-        startY: y,
-        head: [['Shop','Litres','Revenue (PKR)','Transactions']],
-        body: data.shop_breakdown.map(sh=>[
-          sh.shop_name, fmtN(sh.liters), fmtPKR(sh.revenue), sh.transactions
-        ]),
-        headStyles:{ fillColor:[139,92,246], textColor:[255,255,255] },
-        columnStyles:{
-          1:{ halign:'right' }, 2:{ halign:'right', font:'courier' },
-          3:{ halign:'center' }
-        },
-        margin:{ left:14, right:14 },
-      });
-      y = doc.lastAutoTable.finalY + 10;
-    }
-
     // ── Footer on every page ──────────────────────────────────────────
     const pages = doc.getNumberOfPages();
     for (let i=1; i<=pages; i++) {
@@ -249,7 +227,7 @@ export default function Reports() {
   // ── UI ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      <PageHeader title="Reports" subtitle="Tenure & shop-wise sales, purchase and finance reports"/>
+      <PageHeader title="Reports" subtitle="Sales, purchase and finance reports"/>
 
       {/* ── Controls ─────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
@@ -303,7 +281,6 @@ export default function Reports() {
                 { key:'finance',  label:'Finance' },
                 { key:'sales',    label:'Sales' },
                 { key:'purchase', label:'Purchase' },
-                { key:'shop',     label:'Shop-wise' },
               ].map(b=>(
                 <button key={b.key} onClick={()=>generatePDF(b.key)}
                   className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:border-[#1d6faa] hover:text-[#1d6faa] transition">
@@ -345,7 +322,7 @@ export default function Reports() {
 
           {/* Tab switcher */}
           <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-            {['finance','sales','purchase','shops'].map(t=>(
+            {['finance','sales','purchase'].map(t=>(
               <button key={t} onClick={()=>setActiveTab(t)}
                 className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition
                   ${activeTab===t ? 'bg-white text-[#1d6faa] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
@@ -466,37 +443,6 @@ export default function Reports() {
                   </table>
                 </div>
               ) : <p className="text-slate-400 text-sm text-center py-12">No purchase data for this period</p>}
-            </div>
-          )}
-
-          {/* Shops tab */}
-          {activeTab==='shops' && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-3 border-b border-slate-100">
-                <p className="font-semibold text-slate-700">Shop-wise Sales (Walk-in)</p>
-              </div>
-              {data.shop_breakdown?.length ? (
-                <table className="w-full text-sm">
-                  <thead><tr className="bg-slate-50 text-xs text-slate-500 uppercase">
-                    <th className="px-5 py-2.5 text-left">Shop</th>
-                    <th className="px-5 py-2.5 text-right">Litres</th>
-                    <th className="px-5 py-2.5 text-right">Revenue</th>
-                    <th className="px-5 py-2.5 text-right">Transactions</th>
-                  </tr></thead>
-                  <tbody>
-                    {data.shop_breakdown.map((r,i)=>(
-                      <tr key={i} className={i%2===0?'bg-white':'bg-slate-50/50'}>
-                        <td className="px-5 py-3 font-medium text-slate-700 flex items-center gap-2">
-                          <Store size={14} className="text-violet-500"/>{r.shop_name}
-                        </td>
-                        <td className="px-5 py-3 text-right font-mono text-slate-600">{fmtN(r.liters)} L</td>
-                        <td className="px-5 py-3 text-right font-mono font-semibold text-emerald-600">{fmtPKR(r.revenue)}</td>
-                        <td className="px-5 py-3 text-right text-slate-500">{r.transactions}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : <p className="text-slate-400 text-sm text-center py-12">No walk-in shop data for this period</p>}
             </div>
           )}
         </div>

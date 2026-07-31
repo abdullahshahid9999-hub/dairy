@@ -18,16 +18,6 @@ expRouter.get('/categories', async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET shops for rent auto-fill
-expRouter.get('/rent-refs', authenticate, async (_req, res, next) => {
-  try {
-    const [shops] = await db.query(
-      `SELECT id, shop_name AS name, monthly_rent AS amount, 'shop' AS type FROM shops WHERE is_active = TRUE`
-    );
-    res.json({ success: true, data: [...shops] });
-  } catch (err) { next(err); }
-});
-
 expRouter.get('/', async (req, res, next) => {
   try {
     const { category_id, date_from, date_to, page = 1, limit = 50 } = req.query;

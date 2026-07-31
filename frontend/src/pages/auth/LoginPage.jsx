@@ -36,7 +36,7 @@ const PORTALS = {
       'Walk-in sales entry',
       'Customer management',
       'Daily sales history',
-      'Shop stock view',
+      
       'Sales dashboard',
     ],
     redirectFn: () => '/sales',

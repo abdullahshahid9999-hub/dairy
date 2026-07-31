@@ -33,9 +33,8 @@ export default function HRPayroll() {
   const [fireTarget, setFire] = useState(null);
   const [showFired, setShowFired] = useState(false);
   const [portalAccess, setPortalAccess] = useState(false);
-  const [shops, setShops] = useState([]);
 
-  const emptyForm = { name:'', phone:'', join_date:'', designation:'', department:'sales', base_salary:'', email:'', password:'', shop_id:'' };
+  const emptyForm = { name:'', phone:'', join_date:'', designation:'', department:'sales', base_salary:'', email:'', password:'' };
   const [form, setForm]       = useState(emptyForm);
   const [advForm, setAdvForm] = useState({ amount:'', advance_date: new Date().toISOString().slice(0,10), notes:'' });
   const [hrTab, setHrTab]     = useState('advance');
@@ -60,13 +59,11 @@ export default function HRPayroll() {
   };
 
   useEffect(()=>{ loadEmps(); },[showFired]);
-  useEffect(()=>{ api.get('/shops?limit=100').then(r=>setShops(r.data.data||[])); },[]);
 
   const openEdit = (e) => {
     setSel(e);
     setForm({ name:e.name, phone:e.phone||'', join_date:e.join_date?.slice(0,10)||'', designation:e.designation||'',
-      department:e.department||'sales', base_salary:e.base_salary, email:'', password:'',
-      shop_id: e.shop_id ? String(e.shop_id) : '' });
+      department:e.department||'sales', base_salary:e.base_salary, email:'', password:'' });
     setPortalAccess(false);
     setModal('edit');
   };
@@ -74,12 +71,10 @@ export default function HRPayroll() {
   const onEmployee = async (ev) => {
     ev.preventDefault();
     if (!form.name || !form.base_salary) return toast.error('Name and salary required');
-    if (form.department === 'sales' && !form.shop_id) return toast.error('Shop is required for Sales staff');
     setSaving(true);
     try {
       const payload = {
         ...form,
-        shop_id: form.shop_id ? parseInt(form.shop_id, 10) : null,
         base_salary: parseFloat(form.base_salary),
         // Only send email/password if portal access is enabled
         email: portalAccess ? form.email : '',
@@ -167,10 +162,10 @@ export default function HRPayroll() {
           </div>
           <div className="card p-0 overflow-hidden">
             <table className="table-auto w-full">
-              <thead><tr><th>Code</th><th>Name</th><th>Department</th><th>Shop</th><th>Salary</th><th>Advance</th><th>Login</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Code</th><th>Name</th><th>Department</th><th>Salary</th><th>Advance</th><th>Login</th><th>Actions</th></tr></thead>
               <tbody>
                 {loading ? [...Array(5)].map((_,i)=><SkeletonRow key={i} cols={7}/>) :
-                 employees.length===0 ? <tr><td colSpan={7}><EmptyState icon={UserCheck} title="No employees"/></td></tr> :
+                 employees.length===0 ? <tr><td colSpan={6}><EmptyState icon={UserCheck} title="No employees"/></td></tr> :
                  employees.map(e=>(
                   <tr key={e.id} className={!e.is_active?'opacity-50':''}>
                     <td><span className="font-mono text-xs text-[#1d6faa]">{e.emp_code}</span></td>
@@ -179,7 +174,6 @@ export default function HRPayroll() {
                       <div className="text-xs text-slate-400">{e.designation}</div>
                     </td>
                     <td><span className={`badge text-xs ${deptColor[e.department]||'badge-gray'}`}>{DEPT_LABELS[e.department]||e.department}</span></td>
-                    <td><span className="text-xs text-slate-600">{e.shop_name || <span className="text-red-400">No shop</span>}</span></td>
                     <td><span className="font-mono text-emerald-600 font-semibold">{fmt(e.base_salary)}</span></td>
                     <td>{parseFloat(e.pending_advance)>0
                       ? <span className="text-amber-600 font-mono text-sm flex items-center gap-1"><AlertCircle size={12}/>{fmt(e.pending_advance)}</span>
@@ -221,20 +215,6 @@ export default function HRPayroll() {
             <div></div>
           </div>
 
-          {/* Shop — only for Sales department */}
-          {form.department === 'sales' && (
-            <div>
-              <label className="label">Assigned Shop <span className="text-red-400">*</span></label>
-              <select value={form.shop_id} onChange={e=>setForm(p=>({...p,shop_id:e.target.value}))} className="input">
-                <option value="">-- Select Shop --</option>
-                {shops.filter(s=>s.is_active!==false).map(s=>(
-                  <option key={s.id} value={String(s.id)}>{s.shop_name}{s.location ? ` — ${s.location}` : ''}</option>
-                ))}
-              </select>
-              <p className="text-xs text-slate-400 mt-1">Sales staff can only sell from their assigned shop</p>
-            </div>
-          )}
-
           {/* Department / Portal Type */}
           <div className="space-y-2">
             <label className="label">Portal Type *</label>
@@ -243,7 +223,7 @@ export default function HRPayroll() {
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setForm(p => ({ ...p, department: key, extra_permissions: [], shop_id: key === 'purchase' ? '' : p.shop_id }))}
+                  onClick={() => setForm(p => ({ ...p, department: key, extra_permissions: [] }))}
                   className={`text-left border-2 rounded-xl p-4 transition ${
                     form.department === key
                       ? 'border-[#1d6faa] bg-blue-50'
