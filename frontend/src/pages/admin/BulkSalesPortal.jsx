@@ -28,6 +28,7 @@ export default function BulkSalesPortal() {
   const [ledgerLoad, setLedgerLoad] = useState(false);
   const [billRange, setBillRange] = useState({ date_from: '', date_to: '' });
   const [billing, setBilling]     = useState(false);
+  const [stockWarn, setStockWarn] = useState(null);
   const debounce = useRef(null);
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function BulkSalesPortal() {
     e.preventDefault();
     if (!form.customer_id) return toast.error('Select a bulk customer');
     if (!form.qty_liters || !form.fat_percentage || !form.lr) return toast.error('Enter Qty, FAT% and LR');
+    setStockWarn(null);
     setSaving(true);
     try {
       const r = await api.post(`/customers/${form.customer_id}/bulk-entry`, {
@@ -88,7 +90,11 @@ export default function BulkSalesPortal() {
       setCustomers(cs => cs.map(c => c.id === selectedCustomer.id
         ? { ...c, outstanding: parseFloat(c.outstanding || 0) + r.data.data.amount } : c));
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Save failed');
+      const d = err.response?.data;
+      if (d?.data?.available !== undefined) {
+        setStockWarn({ available: d.data.available, requested: d.data.requested });
+      }
+      toast.error(d?.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -217,6 +223,19 @@ export default function BulkSalesPortal() {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {stockWarn && (
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
+                    <span className="text-2xl">⚠️</span>
+                    <div>
+                      <p className="font-bold text-red-700 text-sm">Insufficient Stock</p>
+                      <p className="text-xs text-red-600 mt-1">
+                        You requested <b>{parseFloat(stockWarn.requested).toFixed(1)}L</b> but only <b>{parseFloat(stockWarn.available).toFixed(1)}L</b> is available.
+                      </p>
+                      <p className="text-xs text-red-500 mt-1">Record more milk purchases first.</p>
+                    </div>
                   </div>
                 )}
 

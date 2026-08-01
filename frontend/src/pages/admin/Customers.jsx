@@ -47,16 +47,24 @@ export default function Customers() {
     finally { setSaving(false); }
   };
 
+  const [stockWarn, setStockWarn] = useState(null);
+
   const onBulkEntry = async (e) => {
     e.preventDefault();
+    setStockWarn(null);
     setSaving(true);
     try {
       const r = await api.post(`/customers/${selC.id}/bulk-entry`, bulkEntry);
       toast.success(`Rs ${r.data.data.amount} added to account`);
       setBulkEntry({ qty_liters:'', rate:'', entry_date:today(), notes:'' });
       openDetail(selC);
-    } catch (err) { toast.error(err.response?.data?.message||'Failed'); }
-    finally { setSaving(false); }
+    } catch (err) {
+      const d = err.response?.data;
+      if (d?.data?.available !== undefined) {
+        setStockWarn({ available: d.data.available, requested: d.data.requested });
+      }
+      toast.error(d?.message || 'Failed');
+    } finally { setSaving(false); }
   };
 
   const onBulkBill = async () => {
@@ -139,6 +147,18 @@ export default function Customers() {
             <div className="space-y-3">
               <form onSubmit={onBulkEntry} className="border border-slate-200 rounded-xl p-4 space-y-3">
                 <p className="text-sm font-semibold text-slate-600">Record Delivery</p>
+                {stockWarn && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                    <span className="text-red-500 text-lg leading-none">⚠️</span>
+                    <div>
+                      <p className="text-sm font-bold text-red-700">Insufficient Stock</p>
+                      <p className="text-xs text-red-600 mt-0.5">
+                        Requested: <b>{parseFloat(stockWarn.requested).toFixed(1)}L</b> — Available: <b>{parseFloat(stockWarn.available).toFixed(1)}L</b>
+                      </p>
+                      <p className="text-xs text-red-500 mt-1">Add more milk purchases before recording this delivery.</p>
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <div><label className="label">Date</label><input type="date" value={bulkEntry.entry_date} onChange={e=>setBulkEntry(p=>({...p,entry_date:e.target.value}))} className="input"/></div>
                   <div><label className="label">Qty (L)</label><input type="number" step="0.1" value={bulkEntry.qty_liters} onChange={e=>setBulkEntry(p=>({...p,qty_liters:e.target.value}))} className="input font-mono"/></div>

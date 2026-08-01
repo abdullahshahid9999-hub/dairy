@@ -84,6 +84,23 @@ router.post('/:id/bulk-entry',
       if (!customer) return res.status(404).json({ success:false, message:'Customer not found' });
       if (customer.customer_type !== 'bulk') return res.status(400).json({ success:false, message:'Not a bulk customer' });
 
+      // ── Stock check ───────────────────────────────────────────
+      const stockRow = await db.queryOne(
+        `SELECT GREATEST(0,
+           COALESCE((SELECT SUM(quantity_liters) FROM milk_records),0)
+         - COALESCE((SELECT SUM(qty_liters) FROM bulk_ledger),0)
+         ) AS available`
+      );
+      const available = parseFloat(stockRow?.available || 0);
+      const requested = parseFloat(qty_liters);
+      if (requested > available) {
+        return res.status(400).json({
+          success: false,
+          message: `Not enough stock. Available: ${available.toFixed(1)}L, Requested: ${requested.toFixed(1)}L`,
+          data: { available, requested }
+        });
+      }
+
       let insertCols, insertVals, amount;
 
       if (fat_percentage != null && lr != null) {
