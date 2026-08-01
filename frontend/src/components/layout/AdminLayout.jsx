@@ -15,7 +15,7 @@ const NAV_GROUPS=[
   {label:'Sales',items:[{to:'customers',icon:UserCheck,label:'Customers'},{to:'bulk-sales',icon:Building2,label:'Bulk Sales Portal'},{to:'invoices',icon:FileText,label:'Invoices'}]},
   {label:'Resources',items:[{to:'hr',icon:UserCheck2,label:'HR & Payroll'}]},
   {label:'Expenses',items:[{to:'expenses',icon:DollarSign,label:'Expenses'}]},
-  {label:'Reports',adminOnly:true,items:[{to:'reports',icon:BarChart3,label:'Reports'}]},
+  {label:'Reports',adminOnly:true,items:[{to:'reports',icon:BarChart3,label:'Reports'},{to:'activity',icon:TrendingUp,label:'Activity'}]},
   {label:null,items:[{to:'settings',icon:Settings,label:'Settings'}]},
 ];
 

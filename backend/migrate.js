@@ -125,6 +125,43 @@ const steps = [
   `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS sp_gravity       NUMERIC(6,4)`,
   `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS milk_kg          NUMERIC(10,3)`,
   `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS standardised_ts  NUMERIC(10,4)`,
+  `CREATE TABLE IF NOT EXISTS billing_periods (
+    id            BIGSERIAL PRIMARY KEY,
+    period_month  SMALLINT NOT NULL CHECK (period_month BETWEEN 1 AND 12),
+    period_year   SMALLINT NOT NULL,
+    status        VARCHAR(20) DEFAULT 'open',
+    closed_at     TIMESTAMPTZ,
+    created_by    BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(period_month, period_year)
+  )`,
+  `CREATE TABLE IF NOT EXISTS bills (
+    id                 BIGSERIAL PRIMARY KEY,
+    bill_number        VARCHAR(50) UNIQUE NOT NULL,
+    billing_period_id  BIGINT NOT NULL REFERENCES billing_periods(id) ON DELETE CASCADE,
+    farmer_id          BIGINT NOT NULL REFERENCES farmers(id) ON DELETE RESTRICT,
+    total_liters       NUMERIC(10,3) DEFAULT 0,
+    avg_fat            NUMERIC(6,3),
+    avg_snf            NUMERIC(6,3),
+    total_amount       NUMERIC(10,2) DEFAULT 0,
+    advance_deduction  NUMERIC(10,2) DEFAULT 0,
+    net_payable        NUMERIC(10,2) DEFAULT 0,
+    status             VARCHAR(20) DEFAULT 'generated',
+    paid_at            TIMESTAMPTZ,
+    generated_by       BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS bill_line_items (
+    id               BIGSERIAL PRIMARY KEY,
+    bill_id          BIGINT NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+    milk_record_id   BIGINT REFERENCES milk_records(id) ON DELETE SET NULL,
+    collection_date  DATE,
+    quantity_liters  NUMERIC(10,3),
+    fat_percentage   NUMERIC(6,3),
+    snf_percentage   NUMERIC(6,3),
+    computed_rate    NUMERIC(10,4),
+    line_amount      NUMERIC(10,2)
+  )`,
   `CREATE TABLE IF NOT EXISTS expense_categories (
     id   BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE

@@ -24,11 +24,17 @@ router.get('/pl', async (req, res, next) => {
     );
 
     const sales = await db.queryOne(
-      `SELECT COALESCE(SUM(quantity_liters),0) AS liters, COALESCE(SUM(total_amount),0) AS revenue,
-              COALESCE(SUM(received_amount),0) AS received, COUNT(*) AS transactions
-       FROM milk_sales WHERE sale_date BETWEEN $1 AND $2`,
+      `SELECT COALESCE(SUM(qty_liters),0) AS liters, COALESCE(SUM(amount),0) AS revenue,
+              COUNT(*) AS transactions
+       FROM bulk_ledger WHERE entry_date BETWEEN $1 AND $2`,
       [periodStart, periodEnd]
-    );
+    ).catch(() => ({ liters:0, revenue:0, transactions:0 }));
+
+    const received = await db.queryOne(
+      `SELECT COALESCE(SUM(paid_amount),0) AS received
+       FROM receipts WHERE receipt_date BETWEEN $1 AND $2`,
+      [periodStart, periodEnd]
+    ).catch(() => ({ received:0 }));
 
     const [expBreakdown] = await db.query(
       `SELECT ec.name AS category, COALESCE(SUM(e.amount),0) AS amount
@@ -40,7 +46,7 @@ router.get('/pl', async (req, res, next) => {
     );
 
     const totalExpenses = expBreakdown.reduce((s, r) => s + parseFloat(r.amount), 0);
-    const grossProfit   = parseFloat(sales.revenue) - parseFloat(milk.cost);
+    const grossProfit   = parseFloat(sales?.revenue || 0) - parseFloat(milk.cost);
     const netProfit     = grossProfit - totalExpenses;
 
     const [farmerBreakdown] = await db.query(
@@ -53,12 +59,12 @@ router.get('/pl', async (req, res, next) => {
     );
 
     const [salesBreakdown] = await db.query(
-      `SELECT c.name AS company, SUM(ms.quantity_liters) AS liters, SUM(ms.total_amount) AS revenue
-       FROM milk_sales ms JOIN companies c ON c.id = ms.company_id
-       WHERE ms.sale_date BETWEEN $1 AND $2
-       GROUP BY ms.company_id, c.name`,
+      `SELECT c.name AS company, SUM(bl.qty_liters) AS liters, SUM(bl.amount) AS revenue
+       FROM bulk_ledger bl JOIN customers c ON c.id = bl.customer_id
+       WHERE bl.entry_date BETWEEN $1 AND $2
+       GROUP BY bl.customer_id, c.name ORDER BY revenue DESC`,
       [periodStart, periodEnd]
-    );
+    ).catch(() => [[]]);
 
     res.json({
       success: true,
@@ -69,7 +75,7 @@ router.get('/pl', async (req, res, next) => {
           milk_purchase:  parseFloat(milk.cost).toFixed(2),
           milk_liters:    parseFloat(milk.liters).toFixed(2),
           sales_revenue:  parseFloat(sales.revenue).toFixed(2),
-          sales_received: parseFloat(sales.received).toFixed(2),
+          sales_received: parseFloat(received?.received || 0).toFixed(2),
           sold_liters:    parseFloat(sales.liters).toFixed(2),
           total_expenses: totalExpenses.toFixed(2),
           gross_profit:   grossProfit.toFixed(2),

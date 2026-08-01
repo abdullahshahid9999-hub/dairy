@@ -252,42 +252,18 @@ export default function Dashboard() {
             }
           </KPICard>
 
-          {/* STOCK LEFT — expandable */}
+          {/* STOCK LEFT */}
           <KPICard
             label="Stock Left"
             value={fmtL(kpi.stock_liters)}
-            sub="Total remaining milk across all shops"
+            sub="Collected minus delivered"
             icon={Package}
             color={{
               bg: parseFloat(kpi.stock_liters) < 50 ? 'bg-red-50' : 'bg-amber-50',
               icon: parseFloat(kpi.stock_liters) < 50 ? 'text-red-500' : 'text-amber-600',
               val: parseFloat(kpi.stock_liters) < 50 ? 'text-red-600' : 'text-amber-700',
             }}
-            expandable expanded={stockOpen} onToggle={() => setStockOpen(p => !p)}
-          >
-            {shopStock.length === 0
-              ? <p className="text-slate-400 text-xs text-center py-2">No shop data available.</p>
-              : shopStock.map((s, i) => (
-                <div key={i} className="py-2 border-b border-slate-50 last:border-0">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
-                        <Building2 size={12} className="text-amber-600"/>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-700 text-xs">{s.shop_name}</p>
-                        {s.location && <p className="text-[10px] text-slate-400">{s.location}</p>}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-mono font-bold text-xs ${parseFloat(s.stock_liters) < 20 ? 'text-red-600' : 'text-emerald-600'}">{fmtL(s.stock_liters)} in stock</p>
-                      <p className="text-[10px] text-slate-400">{fmtL(s.sold_liters_period||0)} sold · {fmtL(s.purchased_period||0)} in</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            }
-          </KPICard>
+          />
         </div>
       )}
 

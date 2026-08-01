@@ -20,6 +20,7 @@ import Billing    from './pages/admin/Billing';
 import HRPayroll  from './pages/admin/HRPayroll';
 import Expenses   from './pages/admin/Expenses';
 import Reports    from './pages/admin/Reports';
+import Activity   from './pages/admin/Activity';
 import Settings   from './pages/admin/Settings';
 import Customers  from './pages/admin/Customers';
 import BulkSalesPortal from './pages/admin/BulkSalesPortal';
@@ -95,6 +96,7 @@ export default function App() {
           <Route path="hr"         element={<HRPayroll />} />
           <Route path="expenses"   element={<Expenses />} />
           <Route path="reports"    element={<Reports />} />
+          <Route path="activity"   element={<Activity />} />
           <Route path="settings"   element={<Settings />} />
           <Route path="customers"  element={<Customers />} />
           <Route path="bulk-sales" element={<BulkSalesPortal />} />
