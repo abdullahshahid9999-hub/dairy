@@ -4,6 +4,7 @@ const db = require('../config/db');
 const { validate } = require('../middleware/validate');
 const { authenticate, adminOnly } = require('../middleware/auth');
 const { computeTS, getPricingConfig } = require('../utils/pricingEngine');
+const whatsappService = require('../services/whatsappService');
 
 router.use(authenticate);
 
@@ -150,6 +151,18 @@ router.post('/:id/bulk-entry',
         );
 
         await db.query('UPDATE customers SET outstanding=outstanding+$1 WHERE id=$2', [amount, req.params.id]);
+        // Fire-and-forget WhatsApp notification
+        const cust = await db.queryOne('SELECT name,phone FROM customers WHERE id=$1',[req.params.id]).catch(()=>null);
+        whatsappService.notifySale({
+          companyName: cust?.name || 'Customer',
+          companyPhone: cust?.phone,
+          liters: qty_liters,
+          rate: result.rate_per_unit,
+          amount: amount.toFixed(2),
+          date: entry_date,
+          recordId: req.params.id,
+        }).catch(()=>{});
+
         return res.status(201).json({ success:true, data:{ amount, ...result } });
       }
 
@@ -162,6 +175,16 @@ router.post('/:id/bulk-entry',
         [req.params.id, entry_date, qty_liters, rate, amount.toFixed(2), notes||null, req.user.id]
       );
       await db.query('UPDATE customers SET outstanding=outstanding+$1 WHERE id=$2', [amount, req.params.id]);
+      const custF = await db.queryOne('SELECT name,phone FROM customers WHERE id=$1',[req.params.id]).catch(()=>null);
+      whatsappService.notifySale({
+        companyName: custF?.name || 'Customer',
+        companyPhone: custF?.phone,
+        liters: qty_liters,
+        rate,
+        amount: amount.toFixed(2),
+        date: entry_date,
+        recordId: req.params.id,
+      }).catch(()=>{});
       res.status(201).json({ success:true, data:{ amount } });
     } catch (err) { next(err); }
   }

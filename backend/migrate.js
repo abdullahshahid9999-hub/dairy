@@ -162,6 +162,17 @@ const steps = [
     computed_rate    NUMERIC(10,4),
     line_amount      NUMERIC(10,2)
   )`,
+  `CREATE TABLE IF NOT EXISTS whatsapp_logs (
+    id             BIGSERIAL PRIMARY KEY,
+    recipient      VARCHAR(30),
+    recipient_type VARCHAR(30),
+    template_name  VARCHAR(100),
+    related_table  VARCHAR(50),
+    related_id     BIGINT,
+    success        BOOLEAN DEFAULT FALSE,
+    error_detail   TEXT,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
   `CREATE TABLE IF NOT EXISTS expense_categories (
     id   BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE

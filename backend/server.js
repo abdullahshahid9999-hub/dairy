@@ -303,6 +303,17 @@ async function runAutoMigration() {
     `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS sp_gravity       NUMERIC(6,4)`,
     `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS milk_kg          NUMERIC(10,3)`,
     `ALTER TABLE bulk_ledger ADD COLUMN IF NOT EXISTS standardised_ts  NUMERIC(10,4)`,
+    `CREATE TABLE IF NOT EXISTS whatsapp_logs (
+      id             BIGSERIAL PRIMARY KEY,
+      recipient      VARCHAR(30),
+      recipient_type VARCHAR(30),
+      template_name  VARCHAR(100),
+      related_table  VARCHAR(50),
+      related_id     BIGINT,
+      success        BOOLEAN DEFAULT FALSE,
+      error_detail   TEXT,
+      created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
     `CREATE TABLE IF NOT EXISTS expense_categories (
       id   BIGSERIAL PRIMARY KEY,
       name VARCHAR(100) NOT NULL UNIQUE
