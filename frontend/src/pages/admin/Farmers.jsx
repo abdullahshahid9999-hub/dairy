@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Users, Plus, Edit2, PowerOff, MapPin, Percent, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -8,6 +9,7 @@ import { PageHeader, Modal, EmptyState, SkeletonRow, ConfirmDialog } from '../..
 const fmt = n => `Rs ${Number(n||0).toLocaleString('en-PK',{maximumFractionDigits:0})}`;
 
 export default function Farmers() {
+  const nav = useNavigate();
   const [farmers,setFarmers]=useState([]); const [loading,setLoading]=useState(true);
   const [search,setSearch]=useState(''); const [modal,setModal]=useState(null);
   const [editing,setEditing]=useState(null); const [deactTarget,setDeact]=useState(null);
@@ -50,6 +52,7 @@ export default function Farmers() {
                 <td><span className="font-mono font-semibold text-emerald-600">{fmt(f.base_rate)}/L</span></td>
                 <td>{f.is_active?<span className="badge-green text-xs">Active</span>:<span className="badge-red text-xs">Inactive</span>}</td>
                 <td><div className="flex gap-1.5">
+                  <button onClick={()=>nav(`/admin/farmers/${f.id}/ledger`)} className="btn-ghost p-1.5 text-xs text-[#1d6faa]">Ledger</button>
                   <button onClick={()=>openEdit(f)} className="btn-ghost p-1.5"><Edit2 size={13}/></button>
                   {f.is_active&&<button onClick={()=>setDeact(f)} className="btn-danger p-1.5"><PowerOff size={13}/></button>}
                 </div></td>

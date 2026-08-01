@@ -95,6 +95,40 @@ router.get('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET farmer ledger — all milk records + billing summary
+router.get('/:id/ledger', async (req, res, next) => {
+  try {
+    const { date_from, date_to, limit = 200 } = req.query;
+    const farmer = await db.queryOne('SELECT * FROM farmers WHERE id=$1', [req.params.id]);
+    if (!farmer) return res.status(404).json({ success:false, message:'Farmer not found' });
+
+    let sql = `SELECT mr.id, mr.collection_date, mr.quantity_liters, mr.fat_percentage,
+                      mr.lactometer_reading, mr.ts_value, mr.snf_computed, mr.standardised_ts,
+                      mr.computed_rate, mr.total_amount, mr.collection_time
+               FROM milk_records mr WHERE mr.farmer_id=$1`;
+    const params = [req.params.id]; let pi = 2;
+    if (date_from) { sql += ` AND mr.collection_date >= $${pi++}`; params.push(date_from); }
+    if (date_to)   { sql += ` AND mr.collection_date <= $${pi++}`; params.push(date_to); }
+    sql += ` ORDER BY mr.collection_date DESC LIMIT $${pi}`; params.push(parseInt(limit));
+
+    const [records] = await db.query(sql, params);
+
+    const [bills] = await db.query(
+      `SELECT b.bill_number, b.total_liters, b.total_amount, b.net_payable, b.status, b.paid_at,
+              bp.period_month, bp.period_year
+       FROM bills b JOIN billing_periods bp ON bp.id=b.billing_period_id
+       WHERE b.farmer_id=$1 ORDER BY bp.period_year DESC, bp.period_month DESC`,
+      [req.params.id]
+    ).catch(() => [[]]);
+
+    const totalEarned = records.reduce((s,r) => s + parseFloat(r.total_amount||0), 0);
+    const totalPaid   = bills.filter(b=>b.status==='paid').reduce((s,b) => s + parseFloat(b.net_payable||0), 0);
+    const pending     = Math.max(0, totalEarned - totalPaid);
+
+    res.json({ success:true, data:{ farmer, records, bills, totalEarned, totalPaid, pending } });
+  } catch(err){next(err);}
+});
+
 // POST /api/farmers — admin only
 router.post('/', adminOnly, rules, validate, async (req, res, next) => {
   try {

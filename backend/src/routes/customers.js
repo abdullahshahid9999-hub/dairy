@@ -61,6 +61,35 @@ router.get('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET customer ledger
+router.get('/:id/ledger', async (req, res, next) => {
+  try {
+    const { date_from, date_to, limit = 200 } = req.query;
+    const customer = await db.queryOne('SELECT * FROM customers WHERE id=$1', [req.params.id]);
+    if (!customer) return res.status(404).json({ success:false, message:'Customer not found' });
+
+    let sql = `SELECT id,entry_date,qty_liters,rate,amount,fat_percentage,lr,ts,snf_computed,standardised_ts,notes
+               FROM bulk_ledger WHERE customer_id=$1`;
+    const params = [req.params.id]; let pi = 2;
+    if (date_from) { sql += ` AND entry_date >= $${pi++}`; params.push(date_from); }
+    if (date_to)   { sql += ` AND entry_date <= $${pi++}`; params.push(date_to); }
+    sql += ` ORDER BY entry_date DESC LIMIT $${pi}`; params.push(parseInt(limit));
+
+    const [deliveries] = await db.query(sql, params);
+    const [receipts]   = await db.query(
+      `SELECT id,receipt_no,receipt_date,milk_qty,total_amount,paid_amount,status
+       FROM receipts WHERE customer_id=$1 ORDER BY receipt_date DESC LIMIT 100`,
+      [req.params.id]
+    );
+
+    const totalDelivered = deliveries.reduce((s,d) => s + parseFloat(d.amount||0), 0);
+    const totalPaid      = receipts.filter(r=>r.status==='paid').reduce((s,r) => s + parseFloat(r.paid_amount||0), 0);
+    const pending        = Math.max(0, totalDelivered - totalPaid);
+
+    res.json({ success:true, data:{ customer, deliveries, receipts, totalDelivered, totalPaid, pending } });
+  } catch(err){next(err);}
+});
+
 // ── BULK: record delivery to ledger (FAT/LR-based TS pricing) ──
 router.post('/:id/bulk-entry',
   [

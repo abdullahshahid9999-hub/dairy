@@ -14,7 +14,8 @@ import ResetPasswordPage  from './pages/auth/ResetPasswordPage';
 import OAuthCallback      from './pages/auth/OAuthCallback';
 
 import Dashboard  from './pages/admin/Dashboard';
-import Farmers    from './pages/admin/Farmers';
+import Farmers      from './pages/admin/Farmers';
+import FarmerLedger from './pages/admin/FarmerLedger';
 import MilkAdmin  from './pages/admin/MilkAdmin';
 import Billing    from './pages/admin/Billing';
 import HRPayroll  from './pages/admin/HRPayroll';
@@ -22,7 +23,8 @@ import Expenses   from './pages/admin/Expenses';
 import Reports    from './pages/admin/Reports';
 import Activity   from './pages/admin/Activity';
 import Settings   from './pages/admin/Settings';
-import Customers  from './pages/admin/Customers';
+import Customers       from './pages/admin/Customers';
+import CustomerLedger  from './pages/admin/CustomerLedger';
 import BulkSalesPortal from './pages/admin/BulkSalesPortal';
 import Invoices   from './pages/admin/Invoices';
 
@@ -91,6 +93,7 @@ export default function App() {
           <Route index             element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard"  element={<Dashboard />} />
           <Route path="farmers"    element={<Farmers />} />
+          <Route path="farmers/:id/ledger" element={<FarmerLedger />} />
           <Route path="milk"       element={<MilkAdmin />} />
           <Route path="billing"    element={<Billing />} />
           <Route path="hr"         element={<HRPayroll />} />
@@ -99,6 +102,7 @@ export default function App() {
           <Route path="activity"   element={<Activity />} />
           <Route path="settings"   element={<Settings />} />
           <Route path="customers"  element={<Customers />} />
+          <Route path="customers/:id/ledger" element={<CustomerLedger />} />
           <Route path="bulk-sales" element={<BulkSalesPortal />} />
           <Route path="invoices"   element={<Invoices />} />
         </Route>

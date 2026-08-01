@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Search, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
@@ -11,6 +12,7 @@ const defaultForm = { name:'', phone:'', address:'', customer_type:'bulk', compa
 function today() { return new Date().toISOString().slice(0,10); }
 
 export default function Customers() {
+  const nav = useNavigate();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
@@ -105,6 +107,8 @@ export default function Customers() {
                 <td>
                 <button onClick={(e)=>{ e.stopPropagation(); openDetail(c); }}
                   className="text-xs font-medium text-[#1d6faa] hover:underline">Sale →</button>
+                <button onClick={(e)=>{ e.stopPropagation(); nav(`/admin/customers/${c.id}/ledger`); }}
+                  className="text-xs font-medium text-slate-400 hover:underline ml-2">Ledger</button>
               </td>
               </tr>
             ))}
