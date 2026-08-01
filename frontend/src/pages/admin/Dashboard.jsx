@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { TrendingUp, Package, Truck, ChevronDown, ChevronUp, RefreshCw, Store, Droplets, Users, Calendar } from 'lucide-react';
+import { TrendingUp, Package, Truck, ChevronDown, ChevronUp, RefreshCw, Droplets, Users, Calendar, Building2 } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import api from '../../api/client';
 import useAuthStore from '../../store/authStore';
@@ -272,7 +272,7 @@ export default function Dashboard() {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
-                        <Store size={12} className="text-amber-600"/>
+                        <Building2 size={12} className="text-amber-600"/>
                       </div>
                       <div>
                         <p className="font-semibold text-slate-700 text-xs">{s.shop_name}</p>
@@ -345,7 +345,7 @@ export default function Dashboard() {
           {[
             { icon: Droplets, bg:'bg-blue-100', ic:'text-[#1d6faa]', label:'Total Collected', val: fmtL(kpi.total_liters) },
             { icon: Users,    bg:'bg-emerald-100', ic:'text-emerald-600', label:'Active Farmers',  val: kpi.active_farmers || 0 },
-            { icon: Store,    bg:'bg-amber-100',   ic:'text-amber-600',   label:'Avg FAT%',        val: fmtPct(kpi.avg_fat) },
+            { icon: Building2,    bg:'bg-amber-100',   ic:'text-amber-600',   label:'Avg FAT%',        val: fmtPct(kpi.avg_fat) },
           ].map(({ icon: Icon, bg, ic, label, val }) => (
             <div key={label} className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>

@@ -8,6 +8,10 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejec
 const steps = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS department  VARCHAR(50)  DEFAULT 'sales'`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB        DEFAULT '[]'::jsonb`,
+  `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS due_date     DATE`,
+  `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS period_start DATE`,
+  `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS period_end   DATE`,
+  `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS updated_at   TIMESTAMPTZ`,
   `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS collection_time    TIME`,
   `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS lactometer_reading NUMERIC(6,2)`,
   `ALTER TABLE milk_records ADD COLUMN IF NOT EXISTS snf_computed       NUMERIC(6,4)`,

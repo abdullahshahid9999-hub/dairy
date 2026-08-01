@@ -11,8 +11,8 @@ import toast from 'react-hot-toast';
 
 const NAV_GROUPS=[
   {label:null,items:[{to:'dashboard',icon:LayoutDashboard,label:'Dashboard'}]},
-  {label:'Purchase',items:[{to:'farmers',icon:Users,label:'Collection Centre'},{to:'milk',icon:Milk,label:'Milk Collection'}]},
-  {label:'Sales',items:[{to:'customers',icon:UserCheck,label:'Customers'},{to:'bulk-sales',icon:Building2,label:'Bulk Sales Portal'},{to:'invoices',icon:FileText,label:'Invoices'},{to:'billing',icon:Receipt,label:'Billing'}]},
+  {label:'Purchase',items:[{to:'farmers',icon:Users,label:'Collection Centre'},{to:'milk',icon:Milk,label:'Milk Collection'},{to:'billing',icon:Receipt,label:'Billing'}]},
+  {label:'Sales',items:[{to:'customers',icon:UserCheck,label:'Customers'},{to:'bulk-sales',icon:Building2,label:'Bulk Sales Portal'},{to:'invoices',icon:FileText,label:'Invoices'}]},
   {label:'Resources',items:[{to:'hr',icon:UserCheck2,label:'HR & Payroll'}]},
   {label:'Expenses',items:[{to:'expenses',icon:DollarSign,label:'Expenses'}]},
   {label:'Reports',adminOnly:true,items:[{to:'reports',icon:BarChart3,label:'Reports'}]},

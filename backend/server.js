@@ -260,16 +260,20 @@ async function runAutoMigration() {
       customer_type  VARCHAR(20),
       customer_name  VARCHAR(150),
       invoice_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+      due_date       DATE,
+      period_start   DATE,
+      period_end     DATE,
       subtotal       NUMERIC(10,2) DEFAULT 0,
       discount       NUMERIC(10,2) DEFAULT 0,
       tax_pct        NUMERIC(5,2) DEFAULT 0,
       tax_amount     NUMERIC(10,2) DEFAULT 0,
       total_amount   NUMERIC(10,2) NOT NULL DEFAULT 0,
       paid_amount    NUMERIC(10,2) DEFAULT 0,
-      status         VARCHAR(20) DEFAULT 'pending',
+      status         VARCHAR(20) DEFAULT 'unpaid',
       notes          TEXT,
       created_by     BIGINT REFERENCES users(id) ON DELETE SET NULL,
-      created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at     TIMESTAMPTZ
     )`,
     `CREATE TABLE IF NOT EXISTS invoice_items (
       id           BIGSERIAL PRIMARY KEY,

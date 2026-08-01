@@ -57,9 +57,11 @@ export default function Invoices() {
     setSaving(true);
     try {
       // Build a simple single-item invoice
+      const selCust = customers.find(c => String(c.id) === String(form.customer_id));
       const payload = {
         customer_id:   form.customer_id,
         customer_type: form.customer_type,
+        customer_name: selCust?.name || null,
         invoice_date:  form.invoice_date,
         discount: 0, tax_pct: 0,
         notes: form.notes,

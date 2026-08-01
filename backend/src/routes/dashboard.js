@@ -56,7 +56,8 @@ dashRouter.get('/', async (req, res, next) => {
       () => db.queryOne(
         `SELECT COALESCE(SUM(total_amount),0) AS total_revenue,
                 COALESCE(SUM(paid_amount),0)  AS received,
-                COALESCE(SUM(milk_qty),0)      AS sold_liters
+                COALESCE(SUM(milk_qty),0)      AS sold_liters,
+                COUNT(*)                        AS transactions
          FROM receipts WHERE receipt_date BETWEEN $1 AND $2`,
         [start, end]
       ),
@@ -147,7 +148,9 @@ dashRouter.get('/', async (req, res, next) => {
           active_farmers: parseInt(milkStats?.active_farmers   || 0),
           record_count:   parseInt(milkStats?.record_count     || 0),
           total_revenue:  parseFloat(salesStats?.total_revenue || 0),
+          received:       parseFloat(salesStats?.received       || 0),
           sold_liters:    parseFloat(salesStats?.sold_liters   || 0),
+          transactions:   parseInt(salesStats?.transactions    || 0),
           total_expenses: parseFloat(expStats?.total_expenses  || 0),
           stock_liters:   parseFloat(stockRow?.stock_liters    || 0).toFixed(1),
           profit:         profit.toFixed(2),
