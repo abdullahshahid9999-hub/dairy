@@ -188,15 +188,18 @@ router.get('/sales-summary', async (req, res, next) => {
     const params = [date_from, date_to];
 
     const row = await db.queryOne(
-      `SELECT COALESCE(SUM(total_amount),0) AS total_revenue,
-              COALESCE(SUM(paid_amount),0)  AS received,
-              COALESCE(SUM(milk_qty),0)     AS sold_liters,
-              COUNT(*)                       AS total_receipts
-       FROM receipts WHERE receipt_date BETWEEN $1 AND $2`,
+      `SELECT COALESCE(SUM(amount),0)      AS total_revenue,
+              COALESCE(SUM(qty_liters),0)  AS sold_liters,
+              COUNT(*)                      AS total_receipts
+       FROM bulk_ledger WHERE entry_date BETWEEN $1 AND $2`,
+      params
+    );
+    const paid = await db.queryOne(
+      `SELECT COALESCE(SUM(paid_amount),0) AS received FROM receipts WHERE receipt_date BETWEEN $1 AND $2`,
       params
     );
 
-    res.json({ success:true, data:{ ...row } });
+    res.json({ success:true, data:{ ...row, received: paid?.received || 0 } });
   } catch(err){next(err);}
 });
 

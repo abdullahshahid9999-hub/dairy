@@ -51,17 +51,26 @@ dashRouter.get('/', async (req, res, next) => {
       { total_liters: 0, purchase_cost: 0, avg_fat: 0, active_farmers: 0, record_count: 0 }
     );
 
-    // Sales KPIs — from receipts table (actual cash/walkin/bulk/household sales)
+    // Sales KPIs — from bulk_ledger (actual deliveries recorded)
     const salesStats = await safeQuery(
       () => db.queryOne(
-        `SELECT COALESCE(SUM(total_amount),0) AS total_revenue,
-                COALESCE(SUM(paid_amount),0)  AS received,
-                COALESCE(SUM(milk_qty),0)      AS sold_liters,
-                COUNT(*)                        AS transactions
+        `SELECT COALESCE(SUM(bl.amount),0)      AS total_revenue,
+                COALESCE(SUM(bl.qty_liters),0)  AS sold_liters,
+                COUNT(*)                          AS transactions
+         FROM bulk_ledger bl WHERE bl.entry_date BETWEEN $1 AND $2`,
+        [start, end]
+      ),
+      { total_revenue: 0, received: 0, sold_liters: 0, transactions: 0 }
+    );
+
+    // Received cash — from receipts (only when bill generated and paid)
+    const receivedStats = await safeQuery(
+      () => db.queryOne(
+        `SELECT COALESCE(SUM(paid_amount),0) AS received
          FROM receipts WHERE receipt_date BETWEEN $1 AND $2`,
         [start, end]
       ),
-      { total_revenue: 0, received: 0, sold_liters: 0 }
+      { received: 0 }
     );
 
     // Expenses
@@ -73,12 +82,12 @@ dashRouter.get('/', async (req, res, next) => {
       { total_expenses: 0 }
     );
 
-    // Stock — milk purchased minus milk sold, floored at 0
+    // Stock — milk purchased minus milk delivered to customers
     const stockRow = await safeQuery(
       () => db.queryOne(
         `SELECT GREATEST(0,
            COALESCE((SELECT SUM(quantity_liters) FROM milk_records WHERE collection_date <= $1),0)
-         - COALESCE((SELECT SUM(milk_qty) FROM receipts WHERE receipt_date <= $1 AND milk_qty > 0),0)
+         - COALESCE((SELECT SUM(qty_liters) FROM bulk_ledger WHERE entry_date <= $1),0)
          ) AS stock_liters`,
         [end]
       ),
@@ -148,7 +157,7 @@ dashRouter.get('/', async (req, res, next) => {
           active_farmers: parseInt(milkStats?.active_farmers   || 0),
           record_count:   parseInt(milkStats?.record_count     || 0),
           total_revenue:  parseFloat(salesStats?.total_revenue || 0),
-          received:       parseFloat(salesStats?.received       || 0),
+          received:       parseFloat(receivedStats?.received    || 0),
           sold_liters:    parseFloat(salesStats?.sold_liters   || 0),
           transactions:   parseInt(salesStats?.transactions    || 0),
           total_expenses: parseFloat(expStats?.total_expenses  || 0),
