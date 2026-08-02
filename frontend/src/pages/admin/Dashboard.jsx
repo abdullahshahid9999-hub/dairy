@@ -84,7 +84,6 @@ export default function Dashboard() {
   const [data, setData]         = useState(null);
   const [loading, setLoading]   = useState(true);
   const [spinning, setSpinning] = useState(false);
-  const [stockOpen, setStockOpen] = useState(false);
   const [purchOpen, setPurchOpen] = useState(false);
 
   const load = useCallback(async (t, df, dt) => {
@@ -118,7 +117,6 @@ export default function Dashboard() {
   };
 
   const kpi       = data?.kpi || {};
-  const shopStock = data?.shop_stocks || data?.shop_stock || [];
   const purchases = data?.purchase_breakdown || [];
   const period    = data?.period || {};
 
@@ -256,7 +254,7 @@ export default function Dashboard() {
           <KPICard
             label="Stock Left"
             value={fmtL(kpi.stock_liters)}
-            sub="Collected minus delivered"
+            sub={`${fmtL(kpi.total_liters || 0)} collected − ${fmtL((parseFloat(kpi.total_liters||0) - parseFloat(kpi.stock_liters||0)).toFixed(1))} delivered`}
             icon={Package}
             color={{
               bg: parseFloat(kpi.stock_liters) < 50 ? 'bg-red-50' : 'bg-amber-50',
