@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Zap, CreditCard, ChevronRight } from 'lucide-react';
+import { FileText, Plus, Zap, CreditCard, ChevronRight, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import { PageHeader, Modal, SkeletonRow, EmptyState } from '../../components/ui';
@@ -8,12 +8,75 @@ const STATUS_BADGE={generated:'badge-yellow',paid:'badge-green',cancelled:'badge
 const fmtPKR=n=>`Rs ${Number(n||0).toLocaleString('en-PK',{maximumFractionDigits:0})}`;
 const MONTHS=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+function printLedger(b, period) {
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ledger – ${b.bill_number}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif}
+  body{padding:32px;background:#fff}
+  .header{background:#1e3a5f;color:#fff;padding:20px 28px;display:flex;justify-content:space-between;align-items:center;border-radius:8px 8px 0 0}
+  .brand{font-size:15px;font-weight:800}.addr{font-size:10px;color:#93c5fd;margin-top:2px}
+  .title{text-align:right;font-size:18px;font-weight:900}.meta{font-size:10px;color:#93c5fd;margin-top:4px;line-height:1.8}
+  .body{border:1px solid #e5e7eb;border-top:none;padding:20px 28px;border-radius:0 0 8px 8px}
+  .row{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f3f4f6}
+  .row.total{font-size:15px;font-weight:700;border-top:2px solid #1e3a5f;border-bottom:none;margin-top:4px;padding-top:8px;color:#1e3a5f}
+  .foot{margin-top:16px;font-size:10px;color:#9ca3af;text-align:center;border-top:1px solid #e5e7eb;padding-top:10px}
+  @media print{body{padding:0}}</style></head><body>
+  <div class="header">
+    <div><div class="brand">Brimi Dairies Private Limited</div><div class="addr">P-45, Chak 214 TDA, Bhakkar</div></div>
+    <div><div class="title">FARMER LEDGER</div><div class="meta">Bill #: <b>${b.bill_number}</b><br>Period: <b>${MONTHS[period?.period_month]} ${period?.period_year}</b></div></div>
+  </div>
+  <div class="body">
+    <div class="row"><span>Farmer</span><span style="font-weight:700">${b.farmer_name} (${b.farmer_code})</span></div>
+    <div class="row"><span>Total Liters</span><span>${Number(b.total_liters).toFixed(1)} L</span></div>
+    <div class="row"><span>Total Amount</span><span style="font-weight:700">${fmtPKR(b.total_amount)}</span></div>
+    <div class="row"><span>Deductions</span><span>${fmtPKR(parseFloat(b.total_amount)-parseFloat(b.net_payable))}</span></div>
+    <div class="row total"><span>Net Payable</span><span>${fmtPKR(b.net_payable)}</span></div>
+    <div class="row"><span>Status</span><span style="text-transform:capitalize;font-weight:600">${b.status}</span></div>
+    <div class="foot">Software-generated ledger — no physical signature required. E&amp;OE.</div>
+  </div></body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),400);
+}
+
+function printPaymentSlip(b, period) {
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Payment – ${b.bill_number}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif}
+  body{padding:32px;background:#fff;display:flex;justify-content:center}
+  .slip{width:100%;max-width:500px}
+  .header{background:#1e3a5f;color:#fff;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;border-radius:8px 8px 0 0}
+  .brand{font-size:14px;font-weight:800}.addr{font-size:10px;color:#93c5fd;margin-top:2px}
+  .title{text-align:right;font-size:18px;font-weight:900}.meta{font-size:10px;color:#93c5fd;margin-top:4px;line-height:1.8}
+  .body{border:1px solid #e5e7eb;border-top:none;padding:20px 24px;border-radius:0 0 8px 8px}
+  .fl{font-size:9px;font-weight:800;letter-spacing:1.5px;color:#2563eb;text-transform:uppercase;margin-bottom:3px}
+  .fv{font-size:13px;font-weight:600;padding:7px 10px;border:1px solid #e5e7eb;border-radius:5px;background:#f8fafc;margin-bottom:12px}
+  .fv.big{font-size:20px;font-weight:900;color:#1e3a5f;background:#eff6ff;border-color:#1e3a5f}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .confirmed{display:inline-block;background:#d1fae5;color:#065f46;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:800;margin-top:4px}
+  .foot{margin-top:16px;font-size:10px;color:#9ca3af;text-align:center;border-top:1px solid #e5e7eb;padding-top:10px}
+  @media print{body{padding:0;display:block}}</style></head><body>
+  <div class="slip">
+  <div class="header">
+    <div><div class="brand">Brimi Dairies Private Limited</div><div class="addr">P-45, Chak 214 TDA, Bhakkar</div></div>
+    <div><div class="title">PAYMENT RECEIPT</div><div class="meta">Bill #: <b>${b.bill_number}</b><br>Period: <b>${MONTHS[period?.period_month]} ${period?.period_year}</b></div></div>
+  </div>
+  <div class="body">
+    <div class="fl">Paid To (Farmer)</div><div class="fv">${b.farmer_name} — ${b.farmer_code}</div>
+    <div class="fl">Amount Paid (Rs)</div><div class="fv big">${fmtPKR(b.net_payable)}</div>
+    <div class="grid">
+      <div><div class="fl">Payment Date</div><div class="fv">${new Date().toLocaleDateString('en-PK')}</div></div>
+      <div><div class="fl">Status</div><div class="fv" style="text-transform:capitalize">${b.status}</div></div>
+    </div>
+    <div class="confirmed">✔ Payment Confirmed</div>
+    <div class="foot">Software-generated receipt — no physical signature required. E&amp;OE.</div>
+  </div></div></body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),400);
+}
+
 export default function Billing() {
   const [periods,setPeriods]=useState([]); const [bills,setBills]=useState([]);
   const [selPeriod,setSelPeriod]=useState(null); const [loadP,setLoadP]=useState(true);
   const [loadB,setLoadB]=useState(false); const [generating,setGenerating]=useState(false);
-  const [npm,setNpm]=useState(false); const [billDetail,setBillDetail]=useState(null);
-  const [saving,setSaving]=useState(false);
+  const [npm,setNpm]=useState(false); const [saving,setSaving]=useState(false);
   const [pf,setPf]=useState({period_month:new Date().getMonth()+1,period_year:new Date().getFullYear()});
 
   const loadPeriods=()=>{setLoadP(true);api.get('/billing/periods').then(r=>setPeriods(r.data.data||[])).finally(()=>setLoadP(false));};
@@ -67,7 +130,13 @@ export default function Billing() {
                         <td className="font-mono">{fmtPKR(b.total_amount)}</td>
                         <td className="font-mono font-semibold text-[#1d6faa]">{fmtPKR(b.net_payable)}</td>
                         <td><span className={`badge text-xs ${STATUS_BADGE[b.status]||'badge-gray'}`}>{b.status}</span></td>
-                        <td>{b.status==='generated'&&<button onClick={()=>markPaid(b.id)} className="btn-ghost text-xs py-1 px-2"><CreditCard size={12}/>Pay</button>}</td>
+                        <td>
+                          <div className="flex gap-1 items-center">
+                            {b.status==='generated'&&<button onClick={()=>markPaid(b.id)} className="btn-ghost text-xs py-1 px-2"><CreditCard size={12}/>Pay</button>}
+                            <button title="Print Ledger" onClick={()=>printLedger(b,selPeriod)} className="btn-ghost p-1.5"><Printer size={13}/></button>
+                            <button title="Print Payment" onClick={()=>printPaymentSlip(b,selPeriod)} className="btn-ghost p-1.5"><CreditCard size={13}/></button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
